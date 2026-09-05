@@ -1,0 +1,9 @@
+# .security_denylist.example — Public Release Denylist Template (P1-07)
+# Copy this file to .security_denylist to scan for your own private keywords,
+# customer names, or internal project identifiers without committing them to git.
+
+ACME_CORPORATION
+EXAMPLE_CUSTOMER_NAME
+INTERNAL_PROJECT_ALPHA
+TEST_USER_INTERNAL_ID
+MOCK_COMPANY_CONFIDENTIAL

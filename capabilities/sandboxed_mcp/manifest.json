@@ -1,0 +1,32 @@
+{
+  "capability_id": "CAP-006-GOOSE-SANDBOXED-MCP",
+  "name": "sandboxed_mcp",
+  "version": "1.0.0",
+  "layer": "capabilities",
+  "author": "Hermes Capability Lab",
+  "approved_by": "System Architect",
+  "promoted_at": "2026-08-30T19:50:15+08:00",
+  "description": "Goose-Style Sandboxed MCP Adapter & Safety Bridge Engine with Path Traversal and Command Injection Interception.",
+  "entrypoint": "tools.py:get_sandboxed_mcp_bridge",
+  "files": [
+    "manifest.json",
+    "tools.py",
+    "sandboxed_mcp_bridge.py",
+    "validator.py"
+  ],
+  "dependencies": [],
+  "integrity": {
+    "algorithm": "sha256",
+    "files": {
+      "tools.py": "e838072b058dc161a9ef9a9fbca5ce24aa78bda39eb5a68c6ec63af7fe90d369",
+      "sandboxed_mcp_bridge.py": "b0c130c5444754624cc44456387fbbbebe444fb94ec146da838222ad2309c128",
+      "validator.py": "166e4fd4803025fe41e337b1275e48caa4a2a57f9fc877953faa9f39636fbefe"
+    }
+  },
+  "trust": {
+    "approved": true,
+    "approved_by": "Hermes Release Authority",
+    "policy": "CRYPTOGRAPHICALLY_VERIFIED",
+    "signature": "dc7c660d4d6ee01f33e10b8aa4bcff327753339c4b1ef9cdaf04ac709b77b2634124c3357a775315dfa5786374cf4c21491eb446dbb690a6abddfbfd03b22e07"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "capability_id": "CAP-004-PI-EXTENSION-REGISTRY",
+  "name": "extension_layer",
+  "version": "1.0.0",
+  "layer": "capabilities",
+  "author": "Hermes Capability Lab",
+  "approved_by": "System Architect",
+  "promoted_at": "2026-08-30T19:44:40+08:00",
+  "description": "Pi-Style Minimal Dynamic Extension Discovery & Hot-Pluggable Tool Registry Engine with Automated Pre-Flight Health Quarantine.",
+  "entrypoint": "tools.py:get_extension_registry",
+  "files": [
+    "manifest.json",
+    "tools.py",
+    "extension_registry_engine.py",
+    "validator.py"
+  ],
+  "dependencies": [],
+  "integrity": {
+    "algorithm": "sha256",
+    "files": {
+      "tools.py": "d37168759bc84006d28f1a80e38b490a45b9c21e19b3fcb188d99c07cf469459",
+      "extension_registry_engine.py": "b13da2e48efe49740ba6156fcab85f7d05673f6674a8c6279e66314762c8790c",
+      "validator.py": "1714dc2fccc5da3d64ad5502d93c090367996435072fa68a539c9377a0b45389"
+    }
+  },
+  "trust": {
+    "approved": true,
+    "approved_by": "Hermes Release Authority",
+    "policy": "CRYPTOGRAPHICALLY_VERIFIED",
+    "signature": "ae0b10c865104b3a76a08eb10c7780bbc5a04967ccd8d1b9f05f554469647dbfa84e72817b7bdaf5a0741dda37372025243b4758fee19e95c1c7afca275c4d0e"
+  }
+}

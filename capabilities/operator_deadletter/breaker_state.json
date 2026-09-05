@@ -1,0 +1,14 @@
+{
+  "test_ping": {
+    "job_id": "test_ping",
+    "job_name": "",
+    "consecutive_failures": 0,
+    "state": "HEALTHY",
+    "last_error": "",
+    "last_failure_time": 0.0,
+    "quarantine_time": 0.0,
+    "last_probe_time": 0.0,
+    "probe_interval_seconds": 300,
+    "alert_sent": false
+  }
+}

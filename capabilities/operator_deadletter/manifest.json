@@ -1,0 +1,32 @@
+{
+  "capability_id": "CAP-005-OPENCLAW-CRON-DEADLETTER",
+  "name": "operator_deadletter",
+  "version": "1.0.0",
+  "layer": "capabilities",
+  "author": "Hermes Capability Lab",
+  "approved_by": "System Architect",
+  "promoted_at": "2026-08-30T19:47:15+08:00",
+  "description": "OpenClaw-Style Cron Task Dead Letter Queue & Circuit Breaker Engine with Deduplicated Alerting and Slow Probe Self-Healing.",
+  "entrypoint": "tools.py:get_cron_circuit_breaker",
+  "files": [
+    "manifest.json",
+    "tools.py",
+    "cron_circuit_breaker_engine.py",
+    "validator.py"
+  ],
+  "dependencies": [],
+  "integrity": {
+    "algorithm": "sha256",
+    "files": {
+      "tools.py": "dddbc5e5474acf334b3d9fa4d19607f6dbc5af3737ccdaf1030a1341ed178c46",
+      "cron_circuit_breaker_engine.py": "db4a8bafd7a7634982fa73a2181d3de8338f6aa84af5386097ccb3cbec8f4920",
+      "validator.py": "87d917865e1676bdaea40b3ddec1149f7544ff0cfa8d918f2945c38e38bb298f"
+    }
+  },
+  "trust": {
+    "approved": true,
+    "approved_by": "Hermes Release Authority",
+    "policy": "CRYPTOGRAPHICALLY_VERIFIED",
+    "signature": "fb9c9c569f4752d6e7f29893358228a2c4986cc0104adfcaa4436b8353900714691a096922e756dd094b184ffcddf3b26db9b98ea5599be46396052a4623e709"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "capability_id": "CAP-TEST-BROKEN",
+  "name": "broken_ext",
+  "version": "1.0.0",
+  "entrypoint": "tools.py:run_broken"
+}

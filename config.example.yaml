@@ -1,0 +1,42 @@
+# Hermes Hybrid Agent — Configuration Example Template
+server:
+  host: "127.0.0.1"
+  port: 8647
+  secret_token_env: "HERMES_GATEWAY_TOKEN"
+
+llm_provider:
+  base_url: "http://localhost:8080/v1"
+  api_key_env: "HERMES_LLM_API_KEY"
+  model_name: "Qwen/Qwen2.5-7B-Instruct"
+  timeout_seconds: 120
+
+speed_engines:
+  semantic_cache_enabled: true
+  semantic_cache_ttl: 3600
+  skeleton_streamer_enabled: true
+  speculative_executor_enabled: true
+
+tool_loop_guardrails:
+  warnings_enabled: true
+  hard_stop_enabled: true
+  warn_after:
+    exact_failure: 2
+    same_tool_failure: 3
+    idempotent_no_progress: 3
+  hard_stop_after:
+    exact_failure: 4
+    same_tool_failure: 5
+    idempotent_no_progress: 4
+
+data_tier:
+  sqlite_journal_mode: "WAL"
+  sqlite_synchronous: "NORMAL"
+  fast_path_latency_threshold_ms: 50.0
+
+capabilities:
+  inline_patch_enabled: true
+  planner_recovery_enabled: true
+  agent_loop_recover_enabled: true
+  extension_layer_enabled: true
+  operator_deadletter_enabled: true
+  sandboxed_mcp_enabled: true
