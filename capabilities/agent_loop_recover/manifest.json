@@ -1,0 +1,32 @@
+{
+  "capability_id": "CAP-003-CLAUDE-OBSERVE-RECOVER",
+  "name": "agent_loop_recover",
+  "version": "1.0.0",
+  "layer": "capabilities",
+  "author": "Hermes Capability Lab",
+  "approved_by": "System Architect",
+  "promoted_at": "2026-08-30T19:41:15+08:00",
+  "description": "Claude-Style Structured Diagnostic Feature Extraction & Self-Healing Guided Recovery Engine with 2-Attempt Bounded Circuit Breaker.",
+  "entrypoint": "tools.py:extract_and_diagnose_error",
+  "files": [
+    "manifest.json",
+    "tools.py",
+    "diagnostic_recover_engine.py",
+    "validator.py"
+  ],
+  "dependencies": [],
+  "integrity": {
+    "algorithm": "sha256",
+    "files": {
+      "tools.py": "d23cc9dd7f56a69352add4b6b25be576fabd1d2edc62a703f69b55f9635091ed",
+      "diagnostic_recover_engine.py": "f0cde9c6baefca6a9123cdab225a912c0aaf6b3257b48f2b2680bdc47185aae6",
+      "validator.py": "c5b12983fa53605e53c14566738db94b43d04b021ea9823bdd16ce20b4efd3ec"
+    }
+  },
+  "trust": {
+    "approved": true,
+    "approved_by": "Hermes Release Authority",
+    "policy": "CRYPTOGRAPHICALLY_VERIFIED",
+    "signature": "2eb85c27e82136c269810173db6569217ab6fb780504e862dfb9397ea6439b611af36affc60577060bb4693a46792c60bfe61ffa07f4f740288ba2dc92a82e0b"
+  }
+}

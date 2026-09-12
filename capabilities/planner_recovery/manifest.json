@@ -1,0 +1,32 @@
+{
+  "capability_id": "CAP-002-OPENHANDS-PLANNER-RECOVERY",
+  "name": "planner_recovery",
+  "version": "1.0.0",
+  "layer": "capabilities",
+  "author": "Hermes Capability Lab",
+  "approved_by": "System Architect",
+  "promoted_at": "2026-08-30T19:37:30+08:00",
+  "description": "OpenHands-style Sub-Task DAG State Machine with Dynamic Partial Re-Planning and Immutable Completed Steps Protection.",
+  "entrypoint": "tools.py:create_plan_coordinator",
+  "files": [
+    "manifest.json",
+    "tools.py",
+    "planner_recovery_engine.py",
+    "validator.py"
+  ],
+  "dependencies": [],
+  "integrity": {
+    "algorithm": "sha256",
+    "files": {
+      "tools.py": "14b46071cca58785ea88068f014c58e1070acdd9fa04e44b24fb48fd8562e2d3",
+      "planner_recovery_engine.py": "230040b352cc6a10cf2479159ee2e5c4347e1e9c9416ba9732383e3145de1070",
+      "validator.py": "df68ee112bbb0c7191e6a99df0df93a37f7d09bfbe69c88b849fcef95d1f7d2f"
+    }
+  },
+  "trust": {
+    "approved": true,
+    "approved_by": "Hermes Release Authority",
+    "policy": "CRYPTOGRAPHICALLY_VERIFIED",
+    "signature": "f86beaaa8891465e92c8eb33ea89897be7bef94ca047ef3ba671d6fb56d0738315c732a7caba64e53964a5eeb04846a160a4f7586f71cb7f44183743cceac30f"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "capability_id": "CAP-001-AIDER-INLINE-PATCH",
+  "name": "inline_patch",
+  "version": "1.0.0",
+  "layer": "capabilities",
+  "author": "Hermes Capability Lab",
+  "approved_by": "System Architect",
+  "promoted_at": "2026-08-30T19:28:00+08:00",
+  "description": "Aider-style atomic precision search-and-replace inline patch engine with AST syntax validation and unified diff.",
+  "entrypoint": "tools.py:inline_patch",
+  "files": [
+    "manifest.json",
+    "tools.py",
+    "inline_patch_engine.py",
+    "validator.py"
+  ],
+  "dependencies": [],
+  "integrity": {
+    "algorithm": "sha256",
+    "files": {
+      "tools.py": "08abfc61b138a994fa260bc142e2c5d94fc1e9d1a34ba1a085032d378c2419d4",
+      "inline_patch_engine.py": "b2a926864bed9fb7f6b84ad1e5f2bf359b6a09ce277919860934c2c95f7f4e7c",
+      "validator.py": "7b51d8d9ba20eff23d0d0631fff8e50ce5ffc8582960b5312bc7d42b30b66313"
+    }
+  },
+  "trust": {
+    "approved": true,
+    "approved_by": "Hermes Release Authority",
+    "policy": "CRYPTOGRAPHICALLY_VERIFIED",
+    "signature": "3f8b82ae07ec3a1e02bb0f723207f461cdaf6654ed6d68bea15cb8de3a5b12078ad3aa930ab3f99f00a03a795f845c0d86db3dda69cbc4ee8c24cc298e3ba105"
+  }
+}
