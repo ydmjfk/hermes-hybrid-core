@@ -9,10 +9,13 @@ Hermes Hybrid Core follows strict defense-in-depth engineering principles. The c
 | Version | Supported          | Security Baseline |
 | ------- | ------------------ | ----------------- |
 | 1.0.x   | :white_check_mark: | Public Release Ready |
+| 1.1.x   | :white_check_mark: | Industrial Robustness Edition |
+| 1.2.x   | :white_check_mark: | Public Release Hardened Baseline |
+
 
 ---
 
-## The 10 Security Invariants
+## The 13 Security Invariants
 
 All public releases must satisfy and enforce the following invariants:
 
@@ -26,6 +29,10 @@ All public releases must satisfy and enforce the following invariants:
 * **INVARIANT-08 (Cache Scope Isolation)**: Semantic cache entries must be isolated by `scope_id` and `caller_id`. User A and User B cannot access or leak responses across security scopes.
 * **INVARIANT-09 (Zero Private Identifiers)**: The public repository must not contain real customer names, internal company names, private hostnames, or developer home directory layouts.
 * **INVARIANT-10 (Release Gate Enforcement)**: Any security test failure, secret detection, or dependency vulnerability strictly blocks CI/CD release.
+* **INVARIANT-11 (Spool File POSIX & Symlink Hardening)**: All temporary file spooling mechanisms must enforce POSIX `0700` directory and `0600` file permissions. Spool directories and target files must be strictly validated against symlink substitution using `O_NOFOLLOW` and `is_symlink()` verification.
+* **INVARIANT-12 (Spool Byte Budget & Concurrency Lock)**: Temporary spool files must have hard binary UTF-8 byte budgets with truncation markers factored in, and enforce concurrent directory quotas using advisory file locking (`flock`) to prevent multi-process DoS.
+* **INVARIANT-13 (Bounded History & Spool Masking)**: Runtime duplicate call detectors and state caches must use bounded memory structures (`deque(maxlen=N)`). Spooled file paths must be masked by default (`mask_spool_path=True`) when communicating with language models or external consumers.
+
 
 ---
 
