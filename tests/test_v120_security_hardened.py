@@ -127,6 +127,37 @@ class TestV120SecurityHardened(unittest.TestCase):
         self.assertNotIn("/", filename.replace("spool_", ""))
         self.assertNotIn("\x00", filename)
 
+    def test_default_mask_spool_path(self):
+        """測試預設 mask_spool_path 即為 True，不傳參數也不外洩實體磁碟路徑"""
+        content = "default masking verification\n" * 500
+        compacted, is_truncated, spooled = compact_tool_output(
+            content,
+            max_chars=1024,
+            spool_dir=self.spool_path,
+            task_id="default_mask_task",
+        )
+        self.assertTrue(is_truncated)
+        self.assertIsNotNone(spooled)
+        self.assertNotIn(str(self.spool_path), compacted)
+        self.assertIn("RefID:default_mask_task_", compacted)
+
+    def test_symlink_rejection_in_spool(self):
+        """測試 spool 目錄中若存在惡意 symlink，會被自動清理且絕不盲從"""
+        self.spool_path.mkdir(parents=True, exist_ok=True, mode=0o700)
+        evil_link = self.spool_path / "spool_evil_test.txt"
+        target_file = self.spool_path / "target_file.txt"
+        target_file.write_text("protected sensitive file content", encoding="utf-8")
+        try:
+            evil_link.symlink_to(target_file)
+            from hermes_core.runtime_compactor import _clean_spool_dir_quota
+            _clean_spool_dir_quota(self.spool_path)
+            # 驗證 symlink 已被拔除
+            self.assertFalse(evil_link.exists())
+            self.assertTrue(target_file.exists())
+        finally:
+            evil_link.unlink(missing_ok=True)
+            target_file.unlink(missing_ok=True)
+
     def test_duplicate_detector_bounded_memory(self):
         """測試重複調用偵測器在大量不同調用下記憶體歷史紀錄有界 (maxlen)"""
         detector = ToolDuplicateCallDetector(max_consecutive_duplicates=2, maxlen=50)
@@ -139,3 +170,4 @@ class TestV120SecurityHardened(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-runtime_compactor.py — 工具輸出 4KB 智慧雙向保真截斷與磁碟落盤器 (DEC-20260908-01 / SEC-HARDENED)
+runtime_compactor.py — 工具輸出 4KB 智慧雙向保真截斷與磁碟落盤器 (DEC-20260908-01 / SEC-HARDENED v3)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 職責與安全保證：
 1. 【0 上下文溢出保證】：保證任何輸入下，輸出字元數嚴格 <= max_chars。
@@ -9,12 +9,13 @@ runtime_compactor.py — 工具輸出 4KB 智慧雙向保真截斷與磁碟落�
    - Head：保留前置指令、參數與任務啟動上下文。
    - Tail：保留 Python Traceback、Exit Code、關鍵錯誤與結尾摘要。
 3. 【工業級無菌落盤安全 (SEC-HARDENED)】：
+   - 預設路徑隔離：mask_spool_path 預設為 True，預設不向模型/外部暴露真實實體路徑。
    - 權限約束：目錄嚴格 0700、檔案嚴格 0600 (POSIX 最小特權)。
-   - 競態防禦：採用 os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW 防禦符號連結劫持。
-   - 秘密脫敏：落盤前強制執行 sanitize_secrets 物理脫敏，杜絕憑證落地。
-   - 路徑隔離：支援 mask_spool_path 模式，防止內部檔案系統路徑外洩至模型端。
-   - 容量有界：單檔 10MB 上限，目錄 FIFO 滾動維護 (上限 100 檔)。
-   - 檔名淨化：task_id 採嚴格正則白名單過濾，阻斷目錄穿越與特殊字元注入。
+   - 競態防禦：採用 os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW 防禦符號連結劫持；拒絕任何 Symlink 參照。
+   - 深度脫敏：落盤前強制執行 sanitize_secrets 物理脫敏，抹除常見憑證格式。
+   - 真實位元組配額：單檔 10MB (UTF-8 Bytes) 上限。
+   - 雙重容量有界與 TTL：目錄總容量 100MB 上限、最多 100 檔、24 小時 (TTL) 自動滾動過期清理。
+   - 檔名淨化：task_id 採嚴格正則白名單過濾 (禁用點號與特殊字元)，徹底阻斷目錄穿越。
 """
 
 import collections
@@ -22,6 +23,7 @@ import hashlib
 import os
 import re
 import tempfile
+import time
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -31,8 +33,12 @@ DEFAULT_MAX_CHARS = 4096
 DEFAULT_HEAD_LINES = 15
 DEFAULT_TAIL_LINES = 35
 DEFAULT_SPOOL_DIR = Path(tempfile.gettempdir()) / "hermes_spool"
-MAX_SPOOL_FILE_BYTES = 10 * 1024 * 1024  # 10MB 單檔落盤上限
-MAX_SPOOL_DIR_FILES = 100  # 目錄最多保留 100 個 spool 快照 (FIFO 滾動)
+
+# 安全配額常數 (以真實位元組 UTF-8 計算)
+MAX_SPOOL_FILE_BYTES = 10 * 1024 * 1024    # 10MB 單檔落盤上限 (Bytes)
+MAX_SPOOL_DIR_BYTES = 100 * 1024 * 1024    # 100MB 目錄總容量上限 (Bytes)
+MAX_SPOOL_DIR_FILES = 100                  # 目錄最多保留 100 個 spool 快照
+SPOOL_FILE_TTL_SECONDS = 86400             # 24 小時 TTL 自動清理
 
 
 def _sanitize_task_id(task_id: Optional[str]) -> str:
@@ -44,19 +50,55 @@ def _sanitize_task_id(task_id: Optional[str]) -> str:
     return cleaned or "output"
 
 
-
-def _clean_spool_dir_quota(spool_dir: Path, max_files: int = MAX_SPOOL_DIR_FILES) -> None:
-    """維持 spool 目錄檔案容量上限，若超標則由最舊檔案開始 FIFO 清理"""
+def _clean_spool_dir_quota(
+    spool_dir: Path,
+    max_files: int = MAX_SPOOL_DIR_FILES,
+    max_total_bytes: int = MAX_SPOOL_DIR_BYTES,
+    ttl_seconds: int = SPOOL_FILE_TTL_SECONDS,
+) -> None:
+    """
+    維持 spool 目錄配額健全度：
+    1. 超過 TTL (24h) 的舊快照自動刪除。
+    2. 檢查總容量 (<=100MB) 與總檔數 (<=100)，超限時按 mtime FIFO 滾動清理。
+    3. 自動拔除任何異常的 symlink 檔案。
+    """
     try:
-        files = [p for p in spool_dir.glob("spool_*.txt") if p.is_file() and not p.is_symlink()]
-        if len(files) >= max_files:
-            files.sort(key=lambda p: p.stat().st_mtime)
-            remove_count = len(files) - max_files + 1
-            for f in files[:remove_count]:
+        now = time.time()
+        file_entries = []
+
+        for p in spool_dir.glob("spool_*.txt"):
+            if p.is_symlink():
                 try:
-                    f.unlink(missing_ok=True)
+                    p.unlink(missing_ok=True)
                 except OSError:
                     pass
+                continue
+
+            if p.is_file():
+                try:
+                    st = p.stat()
+                    # 1. TTL 清理
+                    if now - st.st_mtime > ttl_seconds:
+                        p.unlink(missing_ok=True)
+                        continue
+                    file_entries.append((p, st.st_size, st.st_mtime))
+                except OSError:
+                    pass
+
+        # 2. 總檔案數與總容量 FIFO 清理
+        file_entries.sort(key=lambda x: x[2])  # 由舊到新排序
+        total_bytes = sum(x[1] for x in file_entries)
+        total_files = len(file_entries)
+
+        for p, size, _ in file_entries:
+            if total_files <= max_files and total_bytes <= max_total_bytes:
+                break
+            try:
+                p.unlink(missing_ok=True)
+                total_files -= 1
+                total_bytes -= size
+            except OSError:
+                pass
     except Exception:
         pass
 
@@ -70,9 +112,10 @@ def _safe_spool_write(
     """
     高安全物理無菌落盤：
     1. 目錄強制 0700、檔案強制 0600
-    2. 防禦符號連結競爭 (O_EXCL | O_NOFOLLOW)
-    3. 寫入前強制進行憑證敏感資訊脫敏 (sanitize_secrets)
-    4. 實施單檔 10MB 容量上限截斷
+    2. 防禦符號連結競爭 (O_EXCL | O_NOFOLLOW)，拒絕任何既有 Symlink
+    3. 寫入前執行憑證敏感資訊脫敏 (sanitize_secrets)
+    4. 實施真實 UTF-8 位元組截斷 (單檔上限 10MB)
+    5. 執行 100MB / 100 檔 / 24h TTL 自動滾動清理
     """
     try:
         spool_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -84,14 +127,25 @@ def _safe_spool_write(
         _clean_spool_dir_quota(spool_dir)
 
         spool_file = spool_dir / f"spool_{safe_task_id}_{content_hash}.txt"
-        if spool_file.exists():
+
+        # 嚴格校驗已存在的檔案：若為 Symlink 則拔除；若為正常檔案則安全複用
+        if spool_file.is_symlink():
+            try:
+                spool_file.unlink(missing_ok=True)
+            except OSError:
+                return None
+        elif spool_file.is_file():
             return str(spool_file)
 
         # 落盤前物理脫敏
         sanitized_content = sanitize_secrets(content)
-        if len(sanitized_content) > MAX_SPOOL_FILE_BYTES:
+
+        # 以真實 UTF-8 位元組數計算與截斷
+        encoded_bytes = sanitized_content.encode("utf-8")
+        if len(encoded_bytes) > MAX_SPOOL_FILE_BYTES:
+            truncated_bytes = encoded_bytes[:MAX_SPOOL_FILE_BYTES]
             sanitized_content = (
-                sanitized_content[:MAX_SPOOL_FILE_BYTES]
+                truncated_bytes.decode("utf-8", errors="ignore")
                 + "\n... [TRUNCATED: Spool file exceeded 10MB safety quota] ...\n"
             )
 
@@ -115,11 +169,12 @@ def compact_tool_output(
     keep_tail: int = DEFAULT_TAIL_LINES,
     spool_dir: Optional[Path] = None,
     task_id: Optional[str] = None,
-    mask_spool_path: bool = False,
+    mask_spool_path: bool = True,  # 預設啟用遮罩，防止伺服器實體路徑外洩
 ) -> Tuple[str, bool, Optional[str]]:
     """
     智慧雙向保真截斷核心函數。
     保證：回傳的 compacted 字串長度絕對不超過 max_chars。
+    mask_spool_path 預設為 True，不在回傳文字中暴露伺服器檔案路徑。
     回傳 (compacted_text, is_truncated, spooled_file_path)
     """
     if not content or len(content) <= max_chars:
@@ -137,7 +192,7 @@ def compact_tool_output(
         content_hash=content_hash,
     )
 
-    # 決定提示訊息中的路徑展示方式（防止內部伺服器檔案路徑外洩給對話模型）
+    # 決定提示訊息中的路徑展示方式（預設遮罩實體檔案路徑）
     if spooled_path:
         if mask_spool_path:
             spool_label = f"RefID:{safe_task_id}_{content_hash}"
@@ -210,7 +265,7 @@ class ToolOutputCompactor:
         self,
         max_chars: int = DEFAULT_MAX_CHARS,
         spool_dir: Optional[Path] = None,
-        mask_spool_path: bool = False,
+        mask_spool_path: bool = True,  # 預設啟用安全遮罩
     ):
         self.max_chars = max_chars
         self.spool_dir = spool_dir or DEFAULT_SPOOL_DIR
@@ -229,14 +284,16 @@ class ToolOutputCompactor:
     def compact_text(
         cls,
         content: str,
-        max_bytes: int = DEFAULT_MAX_CHARS,
+        max_chars: int = DEFAULT_MAX_CHARS,
         task_id: Optional[str] = None,
-        mask_spool_path: bool = False,
+        mask_spool_path: bool = True,
+        max_bytes: Optional[int] = None,  # 向前相容別名
     ) -> str:
-        """便捷類別方法：直接回傳壓縮後的字串結果"""
+        """便捷類別方法：直接回傳壓縮後的字串結果 (預設 mask_spool_path=True)"""
+        limit = max_bytes if max_bytes is not None else max_chars
         compacted, _, _ = compact_tool_output(
             content,
-            max_chars=max_bytes,
+            max_chars=limit,
             task_id=task_id,
             mask_spool_path=mask_spool_path,
         )
