@@ -86,3 +86,20 @@ echo "=== agent.log ===" && tail -n 30 agent.log && echo "=== errors.log ===" &&
 | 被截斷 | 被截斷 1 次 | 立即縮短重寫（≤ 30 行、≤ 1500 字） |
 | 被截斷 | 被截斷 2 次 | 強制熔斷，只輸出 3 行結論，避免死鎖 |
 | web_search | 連續 2 次未獲得精確數據 | 變換關鍵字或主動停止搜尋 |
+
+---
+
+## 8. 視覺排版幾何預檢自審門禁 (Preflight Deck Guard)
+
+**原則**：凡涉及簡報 (PPTX) 或結構化排版產出，交付前必須強制通過 `PreflightDeckGuard` 幾何預檢，達成 0 瑕疵始得放行：
+- **0 物件相交**：卡片標籤與主標題、文字框與裝飾線條邊界必須維持物理安全間距 (margin ≥ 0.05")。
+- **0 溢出折行**：容器內容文字長度必須受限，嚴禁卡片內容撐破邊界。
+- **0 豆腐塊缺字**：過濾或置換跨平台未支援之 Unicode Emoji，防止 Linux 渲染器出現缺字方塊。
+
+---
+
+## 9. POSIX 進程中樞 Null-Byte 物理消毒 (Process Immunity)
+
+**原則**：底層進程中樞（Process Supervisor）在呼叫 POSIX `execve` / `subprocess.Popen` 前，必須強制執行入向物理殺毒：
+- **消除空字元截斷**：全面呼叫 `sanitize_command_payload` 與 `sanitize_environment` 剝除 `\x00`。
+- **杜絕降級異常**：徹底根除 POSIX C 函式庫引發之 `ValueError: embedded null byte`，消滅無效降級與死局。

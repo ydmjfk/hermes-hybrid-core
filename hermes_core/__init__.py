@@ -58,6 +58,7 @@ from .skeleton_streamer import (
 from .speculative_executor import (
     trigger_speculative_prefetch,
     get_prefetched_data,
+    register_prefetch_handler,
 )
 from .path_sanitizer import (
     PathSanitizer,
@@ -72,9 +73,24 @@ from .security_filter import (
     sanitize_dict,
     contains_secrets,
     mask_secret_string,
+    contains_prompt_injection,
+    sanitize_untrusted_input,
+    sanitize_command_payload,
+    sanitize_environment,
+)
+from .preflight_guard import (
+    PreflightDeckGuard,
+    audit_deck_file,
+    is_intersecting,
+)
+from .chat_client import (
+    SafeAsyncSessionPool,
 )
 
+__version__ = "1.1.0"
+
 __all__ = [
+    "__version__",
     "get_hermes_path",
     "get_db_path",
     "get_env_var",
@@ -90,6 +106,7 @@ __all__ = [
     "send_chat_message",
     "send_chat_file",
     "send_error_alert",
+    "SafeAsyncSessionPool",
     "log_event",
     "record_evidence",
     "get_recent_evidence",
@@ -103,6 +120,7 @@ __all__ = [
     "send_instant_skeleton",
     "trigger_speculative_prefetch",
     "get_prefetched_data",
+    "register_prefetch_handler",
     "PathSanitizer",
     "sanitize_path",
     "is_safe_path",
@@ -113,4 +131,12 @@ __all__ = [
     "sanitize_dict",
     "contains_secrets",
     "mask_secret_string",
+    "contains_prompt_injection",
+    "sanitize_untrusted_input",
+    "sanitize_command_payload",
+    "sanitize_environment",
+    "PreflightDeckGuard",
+    "audit_deck_file",
+    "is_intersecting",
 ]
+

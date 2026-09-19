@@ -17,6 +17,7 @@ archive/
 .archive/
 curator_backups/
 .curator_backups/
+!skills/**/data/
 
 # Backup & Temporary Files
 *.bak

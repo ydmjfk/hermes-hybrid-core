@@ -204,3 +204,52 @@ def send_error_alert(error_title: str, error_details: str, channel_id: Optional[
     """發送格式化異常警報至 Synology Chat"""
     alert_msg = f"🚨 **【Hermes 系統異常警報】**\n📍 **項目**：{error_title}\n⚠️ **詳情**：{error_details}"
     return send_chat_message(alert_msg, channel_id=channel_id)
+
+
+class SafeAsyncSessionPool:
+    """
+    跨 Event Loop 安全異步 HTTP 連線池 (HAOS 35_PerformanceOptimization)
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    防範 aiohttp.ClientSession 綁定建立時之 Event Loop。
+    當 cron 或背景任務跨 thread/loop 存取時，以 run_coroutine_threadsafe
+    在舊 loop 安全執行 session.close()，徹底杜絕 Unclosed client session/connector 洩漏。
+    """
+    _session = None
+    _session_loop = None
+
+    @classmethod
+    def get_session(cls):
+        try:
+            import asyncio
+            import aiohttp
+        except ImportError:
+            return None
+
+        try:
+            current_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            current_loop = None
+
+        if (
+            cls._session is None
+            or cls._session.closed
+            or (current_loop is not None and cls._session_loop is not None and current_loop is not cls._session_loop)
+        ):
+            if cls._session is not None and not cls._session.closed:
+                old_sess = cls._session
+                old_lp = cls._session_loop
+                if old_lp and old_lp.is_running():
+                    try:
+                        asyncio.run_coroutine_threadsafe(old_sess.close(), old_lp)
+                    except Exception:
+                        pass
+                cls._session = None
+
+            connector = aiohttp.TCPConnector(limit=20, keepalive_timeout=60.0, ssl=False)
+            cls._session = aiohttp.ClientSession(
+                connector=connector,
+                timeout=aiohttp.ClientTimeout(total=15.0)
+            )
+            cls._session_loop = current_loop
+
+        return cls._session
