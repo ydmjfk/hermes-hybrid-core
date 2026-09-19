@@ -1,0 +1,49 @@
+{
+  "_meta": {
+    "version": "1.0.0-template",
+    "description": "Hermes Hybrid Core - Canonical Trust Architecture Task Whitelist Template",
+    "spec_reference": "HAOS Canonical Trust Architecture S-6.1~S-6.5 (Invariants 14-16)",
+    "security_model": {
+      "fail_closed": true,
+      "unknown_job": "DENY",
+      "command_not_in_whitelist": "DENY",
+      "chain_symbol_truncation": "Block unquoted ; && | || operators",
+      "path_normalization": "Normalize relative script paths prior to comparison",
+      "dry_run": false
+    },
+    "permissions_note": "This file should be owned by administrator (e.g. root:root 0644) and protected from agent modifications."
+  },
+  "jobs": [
+    {
+      "job_id": "example_backup_task",
+      "name": "Periodic Database Backup Worker",
+      "enabled": true,
+      "type": "pure_script",
+      "allowed_commands": [
+        "python3 /path/to/scripts/backup_worker.py"
+      ],
+      "review_status": "READY"
+    },
+    {
+      "job_id": "example_log_retention",
+      "name": "Log Archive and Retention Cleaner",
+      "enabled": true,
+      "type": "pure_script",
+      "allowed_commands": [
+        "python3 /path/to/scripts/clean_logs.py"
+      ],
+      "review_status": "READY"
+    },
+    {
+      "job_id": "example_analysis_task",
+      "name": "Model-Assisted Metrics Collector",
+      "enabled": true,
+      "type": "llm_agent",
+      "allowed_commands": [],
+      "allowed_prefixes": [
+        "cp /path/to/cache/metrics_ /path/to/backup/"
+      ],
+      "review_status": "READY"
+    }
+  ]
+}

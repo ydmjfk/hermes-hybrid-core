@@ -11,11 +11,12 @@ Hermes Hybrid Core follows strict defense-in-depth engineering principles. The c
 | 1.0.x   | :white_check_mark: | Public Release Ready |
 | 1.1.x   | :white_check_mark: | Industrial Robustness Edition |
 | 1.2.x   | :white_check_mark: | Public Release Hardened Baseline |
+| 1.3.x   | :white_check_mark: | Canonical Trust Architecture & Sandbox Parity |
 
 
 ---
 
-## The 13 Security Invariants
+## The 16 Security Invariants
 
 All public releases must satisfy and enforce the following invariants:
 
@@ -32,6 +33,9 @@ All public releases must satisfy and enforce the following invariants:
 * **INVARIANT-11 (Spool File POSIX & Symlink Hardening)**: All temporary file spooling mechanisms must enforce POSIX `0700` directory and `0600` file permissions. Spool directories and target files must be strictly validated against symlink substitution using `O_NOFOLLOW` and `is_symlink()` verification.
 * **INVARIANT-12 (Spool Byte Budget & Concurrency Lock)**: Temporary spool files must have hard binary UTF-8 byte budgets with truncation markers factored in, and enforce concurrent directory quotas using advisory file locking (`flock`) to prevent multi-process DoS.
 * **INVARIANT-13 (Bounded History & Spool Masking)**: Runtime duplicate call detectors and state caches must use bounded memory structures (`deque(maxlen=N)`). Spooled file paths must be masked by default (`mask_spool_path=True`) when communicating with language models or external consumers.
+* **INVARIANT-14 (Background-Foreground Execution Parity & Sandbox Fail-Closed)**: Background processes must enforce the exact same security gates and sandbox confinement as foreground processes. Any failure in namespace creation, isolation adapter, or sandbox startup must strictly fail closed (return BLOCKED / exit code -1) without falling back to unconfined host execution.
+* **INVARIANT-15 (Persistent Memory Anti-Taint & Anchor Protection)**: Persistent state and memory files (`MEMORY.md`, `USER.md`, `SOUL.md`) must reject adversarial prompt injection patterns (`ignore previous instructions`), shell payload markers, and tampering with immutable constitutional anchors. Mutating generic file tools (`write_file`, `patch`) must enforce persistent memory boundaries against direct or multi-file patch header (`*** Update/Move File:`) writes.
+* **INVARIANT-16 (Decoupled Task Identity & Anti-Chaining Per-Job Whitelist)**: Scheduled and automated headless tasks must bind their verified task identity via session context variables. Task definition must be decoupled from execution authority (anti-self-authorization). All command evaluation must block unquoted shell command chaining operators (`;`, `&&`, `|`, `||`) and enforce strict exact/prefix whitelisting.
 
 
 ---
