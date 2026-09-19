@@ -4,7 +4,8 @@
 [![授權協議: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 版本: 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![能力庫健全度: 6/6 全綠](https://img.shields.io/badge/Capabilities-6%2F6%20Promoted-success.svg)]()
-[![單元測試: 82/82 PASS](https://img.shields.io/badge/Tests-82%2F82%20PASS%20(100%25)-brightgreen.svg)]()
+[![單元測試: 88/88 PASS](https://img.shields.io/badge/Tests-88%2F88%20PASS%20(100%25)-brightgreen.svg)]()
+
 [![安全基線: Public Release Ready](https://img.shields.io/badge/Security%20Baseline-Public%20Release%20Ready-blue.svg)](SECURITY.md)
 
 **Hermes Hybrid Core** 是一套專為高可靠生產環境、工控自動化與大語言模型（LLM）工作流打造的**工業級 AI Agent 極速加速與確定性治理 SDK**。
@@ -155,11 +156,12 @@ hermes-hybrid-core/
 │
 ├── haos/                      # 🛡️ HAOS 5.3 確定性治理憲法條文 (含單一操作邊界與進程消毒)
 │
-├── tests/                     # 🧪 自動化能力與安全治理單元測試套件 (82/82 PASS)
+├── tests/                     # 🧪 自動化能力與安全治理單元測試套件 (88/88 PASS)
 │   ├── test_hermes_core.py    # 核心加速與緩存單元測試
 │   ├── test_security_governance.py # 安全治理五大防線 31 項測試
 │   ├── test_preflight_and_sanitizer.py # [v1.2.0] 幾何預檢與消毒器專案測試
 │   ├── test_v120_fortnight_upgrades.py # [v1.2.0] 雙週主版本 10 項升級整合驗收測試
+│   ├── test_v120_security_hardened.py  # [v1.2.0] 無菌落盤 0600、機密脫敏與預算門禁測試
 │   └── security/              # 26 項獨立安全向量與穿透性攻擊驗證套件
 │
 └── mock_data/                 # 📋 示範任務資料 (開箱即用)
@@ -247,7 +249,7 @@ if not report.passed:
 # 1. 驗證 6 大官方能力庫 (100% 全綠驗證)
 python3 capabilities/verify_all_capabilities.py
 
-# 2. 執行全套單元測試 (82/82 PASS，包含 v1.2.0 新特性與 26 項安全穿透測試)
+# 2. 執行全套單元測試 (88/88 PASS，包含 v1.2.0 新特性與 26 項安全穿透測試)
 python3 -m unittest discover -s tests
 
 # 3. 執行全專案零私密資訊與隱私掃描 (100% 通過)

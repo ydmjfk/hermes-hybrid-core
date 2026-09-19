@@ -8,6 +8,7 @@ circuit_breaker.py — 任務熔斷器與死信佇列防護 (基於 CAP-005 核�
 4. 負向快取隔離 (Negative Caching - 阻絕故障網址或端點反覆重試)
 """
 
+import collections
 import json
 import logging
 import os
@@ -15,6 +16,7 @@ import re
 import time
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Tuple
+
 
 from hermes_core.config_loader import get_hermes_path
 
@@ -210,9 +212,9 @@ class ToolDuplicateCallDetector:
     導致陷入 9~10 輪重複空轉死循環。
     連續相同調用 >= 2 次即啟動硬熔斷，阻斷後續無效嘗試。
     """
-    def __init__(self, max_consecutive_duplicates: int = 2):
+    def __init__(self, max_consecutive_duplicates: int = 2, maxlen: int = 1000):
         self.max_duplicates = max_consecutive_duplicates
-        self._call_history = []  # [(tool_name, params_hash, count)]
+        self._call_history = collections.deque(maxlen=maxlen)  # [(tool_name, params_hash, count)]
 
     def record_and_check(self, tool_name: str, params: Any) -> Tuple[bool, str]:
         """
@@ -236,6 +238,7 @@ class ToolDuplicateCallDetector:
             self._call_history.append((tool_name, p_hash, 1))
 
         return False, ""
+
 
 
 class SmartApprovalTimeoutShield:

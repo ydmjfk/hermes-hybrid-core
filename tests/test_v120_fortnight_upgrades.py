@@ -37,12 +37,14 @@ class TestV120FortnightUpgrades(unittest.TestCase):
         self.assertGreater(len(large_content), 4096)
 
         compacted, is_truncated, spool_path = compact_tool_output(
-            large_content, max_chars=1024, keep_head=15, keep_tail=35
+            large_content, max_chars=3000, keep_head=15, keep_tail=35
         )
 
         self.assertTrue(is_truncated)
+        self.assertLessEqual(len(compacted), 3000)
         self.assertIsNotNone(spool_path)
         self.assertTrue(Path(spool_path).exists())
+
 
         # 檢驗前 15 行保留
         self.assertIn("Line 001: Task initialization", compacted)
