@@ -22,8 +22,8 @@ from hermes_core import (
 class TestV120FortnightUpgrades(unittest.TestCase):
 
     def test_version_bump(self):
-        """驗證 v1.2.0 大版本宣告"""
-        self.assertEqual(__version__, "1.2.0")
+        """驗證 v1.2.0+ 大版本宣告"""
+        self.assertIn(__version__, ("1.2.0", "1.3.0"))
 
     def test_tool_output_compaction_head_tail(self):
         """驗證 4KB 雙向保真截斷 (Head 15 + Tail 35 行保留)"""

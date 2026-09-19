@@ -41,15 +41,19 @@ jobs:
         run: |
           python capabilities/verify_all_capabilities.py
 
-      - name: 4. Run Security Test Matrix (SEC-001 ~ SEC-018)
+      - name: 4. Run Canonical Trust Boundary Tests (Invariants 14 ~ 16)
+        run: |
+          python -m unittest tests/test_trust_boundary.py
+
+      - name: 5. Run Security Test Matrix (SEC-001 ~ SEC-024)
         run: |
           python -m unittest discover -s tests/security -p "test_*.py"
 
-      - name: 5. Public Privacy & Git History Release Audit
+      - name: 6. Public Privacy & Git History Release Audit
         run: |
           python check_security.py --scan-git-history
 
-      - name: 6. Dependency Vulnerability Audit (Strict Fail-Closed)
+      - name: 7. Dependency Vulnerability Audit (Strict Fail-Closed)
         run: |
           pip-audit --desc on -r requirements.lock
 

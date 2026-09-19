@@ -98,8 +98,18 @@ from .circuit_breaker import (
     ToolDuplicateCallDetector,
     SmartApprovalTimeoutShield,
 )
+from .trust_boundary import (
+    has_command_chaining,
+    verify_memory_content_safety,
+    verify_memory_taint_provenance,
+    check_protected_file_paths,
+    guard_background_command,
+    verify_task_authorization,
+    fail_closed_sandbox_result,
+    TaintTag,
+)
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
 __all__ = [
     "__version__",
@@ -157,5 +167,13 @@ __all__ = [
     "is_intersecting",
     "compact_tool_output",
     "ToolOutputCompactor",
+    "has_command_chaining",
+    "verify_memory_content_safety",
+    "verify_memory_taint_provenance",
+    "check_protected_file_paths",
+    "guard_background_command",
+    "verify_task_authorization",
+    "fail_closed_sandbox_result",
+    "TaintTag",
 ]
 

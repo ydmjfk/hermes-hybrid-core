@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 tests/test_trust_boundary.py — Unit Tests for Canonical Trust Boundary Engine (Invariants 14-16)
+Remediated for Hermes v1.3.1 Security Baseline.
 """
 
 import os
@@ -9,9 +10,12 @@ import unittest
 from hermes_core.trust_boundary import (
     has_command_chaining,
     verify_memory_content_safety,
+    verify_memory_taint_provenance,
     check_protected_file_paths,
     guard_background_command,
     verify_task_authorization,
+    fail_closed_sandbox_result,
+    TaintTag,
 )
 
 
@@ -23,15 +27,44 @@ class TestTrustBoundary(unittest.TestCase):
         res_fg = guard_background_command("rm -rf /tmp/test", in_sandbox=False, is_background=False)
         self.assertIsNone(res_fg)
 
-        # Background command with sandbox is not blocked
-        res_sb = guard_background_command("rm -rf /tmp/test", in_sandbox=True, is_background=True)
+        # Background command with verified sandbox is not blocked
+        res_sb = guard_background_command(
+            "rm -rf /tmp/test", in_sandbox=True, is_background=True, sandbox_verified=True
+        )
         self.assertIsNone(res_sb)
 
-        # Background command without sandbox MUST be blocked
+        # Background command with unverified sandbox declaration MUST be blocked
+        res_sb_unverified = guard_background_command(
+            "rm -rf /tmp/test", in_sandbox=True, is_background=True, sandbox_verified=False
+        )
+        self.assertIsNotNone(res_sb_unverified)
+        self.assertEqual(res_sb_unverified["status"], "BLOCKED")
+
+        # Background mutating command without sandbox MUST be blocked
         res_bg = guard_background_command("rm -rf /tmp/test", in_sandbox=False, is_background=True)
         self.assertIsNotNone(res_bg)
         self.assertEqual(res_bg["status"], "BLOCKED")
         self.assertEqual(res_bg["exit_code"], -1)
+
+    def test_invariant_14_interpreter_background_defense(self):
+        """Invariant 14: Inline interpreter execution in background without sandbox must be blocked"""
+        # python3 -c inline execution in background
+        res_py = guard_background_command("python3 -c 'import os; os.remove(\"/tmp/foo\")'", is_background=True)
+        self.assertIsNotNone(res_py)
+        self.assertEqual(res_py["status"], "BLOCKED")
+
+        # bash -c inline execution in background
+        res_sh = guard_background_command("bash -c 'rm -rf /tmp/foo'", is_background=True)
+        self.assertIsNotNone(res_sh)
+        self.assertEqual(res_sh["status"], "BLOCKED")
+
+    def test_invariant_14_fail_closed_sandbox_result(self):
+        """Invariant 14 (S-2): Sandbox container crash or startup error must fail-closed"""
+        res = fail_closed_sandbox_result("rm -rf /tmp/test", RuntimeError("Container OCI runtime failure"), task_id="job_bg")
+        self.assertEqual(res["status"], "BLOCKED")
+        self.assertEqual(res["exit_code"], -1)
+        self.assertTrue(res["fail_closed"])
+        self.assertIn("Container OCI runtime failure", res["stderr"])
 
     def test_invariant_15_prompt_injection_blocked(self):
         """Invariant 15: Adversarial prompt injection payloads in persistent memory must be blocked"""
@@ -53,6 +86,20 @@ class TestTrustBoundary(unittest.TestCase):
         err = verify_memory_content_safety("remove", "memory", old_text=old_text)
         self.assertIsNotNone(err)
         self.assertIn("IMMUTABLE ANCHOR", err)
+
+    def test_invariant_15_taint_provenance_gate(self):
+        """Invariant 15 (S-4.1): Untrusted web/external inputs blocked from memory persistence"""
+        err_web = verify_memory_taint_provenance("add", TaintTag.UNTRUSTED_WEB, "scraped data")
+        self.assertIsNotNone(err_web)
+        self.assertIn("S-4 Taint Gate", err_web)
+
+        err_ext = verify_memory_taint_provenance("add", "EXTERNAL_INPUT", "untrusted prompt")
+        self.assertIsNotNone(err_ext)
+        self.assertIn("S-4 Taint Gate", err_ext)
+
+        # Human confirmed or internal system memory is permitted
+        err_sys = verify_memory_taint_provenance("add", TaintTag.HUMAN_CONFIRMED, "vetted knowledge")
+        self.assertIsNone(err_sys)
 
     def test_invariant_15_protected_file_paths(self):
         """Invariant 15 & 16: Generic file tools cannot directly mutate persistent memory or whitelist"""
@@ -104,6 +151,11 @@ class TestTrustBoundary(unittest.TestCase):
         self.assertTrue(res2["approved"])
         self.assertEqual(res2["message"], "AUTHORIZED_PREFIX")
 
+        # Traversal attempt under prefix blocked (Gap 8)
+        res_trav = verify_task_authorization("cp /cache/data_../../etc/shadow /backup/", "job_001", config)
+        self.assertFalse(res_trav["approved"])
+        self.assertIn("traversal", res_trav["message"])
+
         # Chaining blocked even with valid prefix
         res_chain = verify_task_authorization("cp /cache/data_foo /backup/; rm -rf /", "job_001", config)
         self.assertFalse(res_chain["approved"])
@@ -120,6 +172,35 @@ class TestTrustBoundary(unittest.TestCase):
         # Unknown job blocked (fail-closed)
         res_unk = verify_task_authorization("python3 /scripts/backup.py", "unknown_job_id", config)
         self.assertFalse(res_unk["approved"])
+
+    def test_invariant_16_dry_run_decoupling(self):
+        """Invariant 16 (Gap 7): dry_run must NEVER return approved=True for unapproved actions"""
+        dry_config = {
+            "_meta": {
+                "security_model": {"fail_closed": True, "dry_run": True}
+            },
+            "jobs": [
+                {
+                    "job_id": "job_audit",
+                    "name": "Audit Worker",
+                    "enabled": True,
+                    "allowed_commands": ["python3 /scripts/audit.py"],
+                    "allowed_prefixes": []
+                }
+            ]
+        }
+
+        # Denied command under dry_run: approved MUST BE False, but action is LOG_ONLY
+        res = verify_task_authorization("rm -rf /var/log", "job_audit", dry_config)
+        self.assertFalse(res["approved"], "Dry-run denied command must NEVER return approved=True!")
+        self.assertTrue(res["dry_run_mode"])
+        self.assertEqual(res["action"], "LOG_ONLY")
+        self.assertIn("DRY-RUN SIMULATION", res["message"])
+
+        # Allowed command under dry_run returns approved=True with EXECUTE
+        res_ok = verify_task_authorization("python3 /scripts/audit.py", "job_audit", dry_config)
+        self.assertTrue(res_ok["approved"])
+        self.assertEqual(res_ok["action"], "EXECUTE")
 
 
 if __name__ == "__main__":

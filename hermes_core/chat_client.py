@@ -245,7 +245,8 @@ class SafeAsyncSessionPool:
                         pass
                 cls._session = None
 
-            connector = aiohttp.TCPConnector(limit=20, keepalive_timeout=60.0, ssl=False)
+            ssl_context = _get_ssl_context()
+            connector = aiohttp.TCPConnector(limit=20, keepalive_timeout=60.0, ssl=ssl_context)
             cls._session = aiohttp.ClientSession(
                 connector=connector,
                 timeout=aiohttp.ClientTimeout(total=15.0)

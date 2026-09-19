@@ -4,7 +4,7 @@
 [![Python 版本: 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![能力庫健全度: 6/6 全綠](https://img.shields.io/badge/Capabilities-6%2F6%20Promoted-success.svg)]()
 
-[![單元測試: 98/98 PASS](https://img.shields.io/badge/Tests-98%2F98%20PASS%20(100%25)-brightgreen.svg)]()
+[![單元測試: 109/109 PASS](https://img.shields.io/badge/Tests-109%2F109%20PASS%20(100%25)-brightgreen.svg)]()
 
 
 [![安全基線: Public Release Ready](https://img.shields.io/badge/Security%20Baseline-Public%20Release%20Ready-blue.svg)](SECURITY.md)

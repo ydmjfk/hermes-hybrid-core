@@ -75,7 +75,8 @@ def load_external_denylist() -> Set[str]:
                     if line and not line.startswith("#"):
                         denylist.add(line)
         except Exception as e:
-            print(f"⚠️ 無法讀取外部黑名單檔: {e}")
+            print(f"❌【安全門禁阻斷】無法讀取外部黑名單檔 (UNKNOWN = FAIL): {e}")
+            sys.exit(1)
 
     return denylist
 
@@ -153,10 +154,12 @@ def run_git_history_audit() -> Tuple[bool, List[Tuple[str, str]], int]:
         cmd = ["git", "log", "-p", "--all", "--full-history"]
         result = subprocess.run(cmd, cwd=REPO_ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="ignore")
         if result.returncode != 0:
-            return True, [], 0
+            err = f"git log failed with return code {result.returncode}: {result.stderr.strip()[:100]}"
+            print(f"❌【安全門禁阻斷】無法執行 git log 歷史審計 (UNKNOWN = FAIL): {err}")
+            return False, [("GitHistoryAudit", err)], 0
     except Exception as e:
-        print(f"⚠️ 無法執行 git log 歷史審計: {e}")
-        return True, [], 0
+        print(f"❌【安全門禁阻斷】無法執行 git log 歷史審計 (UNKNOWN = FAIL): {e}")
+        return False, [("GitHistoryAudit", str(e))], 0
 
     current_commit = "initial"
     current_file = "unknown"
