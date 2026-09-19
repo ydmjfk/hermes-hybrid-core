@@ -28,7 +28,7 @@ DEFAULT_PUBKEY_FILE = TRUST_ROOT_DIR / "release_authority.pub"
 # 內建官方 Release Authority 根公鑰 (Ed25519 Raw 32-bytes Hex)
 # 可透過環境變數 HERMES_TRUST_ROOT_PUBKEY 覆寫以自訂企業內部信任根
 BUILTIN_RELEASE_AUTHORITY_PUBKEY_HEX = (
-    "a50e72a59f0f95217cb1ca8420ec9eb2d2db68051339d27953cbccf513567f7b"
+    "65066f7a0b6cd41cb528e8e921463d14d0c782a009e774b57b9897bcc2a00c98"
 )
 
 
