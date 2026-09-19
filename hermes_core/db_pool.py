@@ -82,10 +82,25 @@ def execute_query(db_target: Union[str, Path], query: str, params: Union[Tuple, 
         if kw in upper_q:
             raise ValueError(f"安全阻斷：禁止在查詢中使用特權 SQL 關鍵字 '{kw}'")
 
-    # 4. 嚴格 PRAGMA 安全約束 (只允許唯讀檢視，禁止寫入或變更 schema)
+    # 4. 嚴格 PRAGMA 安全約束 (強制採用安全白名單，徹底禁止寫入、提權或未授權之 PRAGMA)
     if "PRAGMA" in upper_q:
-        if "=" in upper_q or any(bad in upper_q for bad in ("WRITABLE_SCHEMA", "HEXKEY", "KEY")):
-            raise ValueError("安全阻斷：禁止執行變更性或提權之 PRAGMA 配置")
+        if "=" in upper_q:
+            raise ValueError("安全阻斷：禁止執行變更性 PRAGMA 配置語法 (包含 '=')")
+
+        # 提取 PRAGMA 指令名稱
+        pragma_match = re.search(r"PRAGMA\s+([A-Za-z0-9_]+)", upper_q)
+        if not pragma_match:
+            raise ValueError("安全阻斷：無效或未授權之 PRAGMA 語法")
+
+        pragma_cmd = pragma_match.group(1).upper()
+        allowed_pragmas = {
+            "TABLE_INFO", "INDEX_LIST", "INDEX_INFO", "FOREIGN_KEY_LIST",
+            "USER_VERSION", "BUSY_TIMEOUT", "QUICK_CHECK", "INTEGRITY_CHECK",
+            "COLLATION_LIST", "DATABASE_LIST"
+        }
+        if pragma_cmd not in allowed_pragmas:
+            raise ValueError(f"安全阻斷：PRAGMA 指令 '{pragma_cmd}' 不在唯讀安全白名單中！")
+
 
     # 5. 確保 params 格式合法
     if not isinstance(params, (tuple, list, dict)):

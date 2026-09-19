@@ -289,11 +289,23 @@ INGRESS_PAYLOAD_PATTERNS: List[Pattern] = [
 ]
 
 
+def _normalize_text_for_security(text: str) -> str:
+    """Unicode NFKC 正規化與零寬字元剝除，防止正則被同形字與隱藏字元繞過"""
+    import unicodedata
+    if not text:
+        return ""
+    normalized = unicodedata.normalize("NFKC", text)
+    # 移除常見零寬與控制隱形字元: Zero-width space, ZWNJ, ZWJ, BOM
+    cleaned = re.sub(r"[\u200B-\u200D\uFEFF]", "", normalized)
+    return cleaned
+
+
 def contains_prompt_injection(text: str) -> bool:
-    """快速檢測文字是否含有提示詞越獄或注入特徵"""
+    """快速檢測文字是否含有提示詞越獄或注入特徵 (含 Unicode 防混淆)"""
     if not text:
         return False
-    return any(p.search(text) for p in INGRESS_INJECTION_PATTERNS)
+    normalized = _normalize_text_for_security(text)
+    return any(p.search(normalized) for p in INGRESS_INJECTION_PATTERNS)
 
 
 def sanitize_untrusted_input(
@@ -303,14 +315,15 @@ def sanitize_untrusted_input(
 ) -> str:
     """
     全域入向無菌殺毒清洗器 (HAOS Ingress Sanitizer)
-    1. 物理消殺提示詞越獄特徵（抹除攻擊語句）
-    2. 中和高危險 Shell 代碼（轉義不可執行）
-    3. 可選包裹 Untrusted External Data 安全隔離聲明
+    1. Unicode NFKC 正規化與零寬字元剝除 (防同形混淆繞過)
+    2. 物理消殺提示詞越獄特徵（抹除攻擊語句）
+    3. 中和高危險 Shell 代碼（轉義不可執行）
+    4. 可選包裹 Untrusted External Data 安全隔離聲明
     """
     if not text:
         return text
 
-    cleaned = text
+    cleaned = _normalize_text_for_security(text)
 
     # 1. 殺毒：抹除間接提示詞注入
     for p in INGRESS_INJECTION_PATTERNS:
@@ -319,6 +332,7 @@ def sanitize_untrusted_input(
     # 2. 中和：剝奪高危代碼執行性
     for p in INGRESS_PAYLOAD_PATTERNS:
         cleaned = p.sub('[⚠️ HAOS-SECURITY: 偵測到高危險指令模式，已中和為安全說明]', cleaned)
+
 
     # 3. 隔離防護罩（若需要）
     if wrap_isolation_banner:

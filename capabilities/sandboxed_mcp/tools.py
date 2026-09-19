@@ -4,7 +4,9 @@
 Sandboxed MCP Tool Entrypoint for Hermes Capability Library
 """
 
+from pathlib import Path
 from typing import Dict, Any, List, Optional
+
 try:
     from .sandboxed_mcp_bridge import SandboxedMCPBridge
 except ImportError:

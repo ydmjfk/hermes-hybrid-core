@@ -194,16 +194,25 @@ class PathSanitizer:
             if resolved_str == prefix or resolved_str.startswith(f"{prefix}/"):
                 raise SensitivePathBlockedError(f"安全阻斷：禁止存取系統底層路徑 '{resolved}'")
 
-        # 6. 驗證工作區邊界 (Workspace Boundary Enforcement)
+        # 6. 驗證工作區邊界 (Workspace Boundary Enforcement 雙重安全門禁)
+        is_in_workspace = False
         try:
             rel = resolved.relative_to(self.workspace_root)
+            # 二度嚴格校驗：os.path.commonpath 實體路徑前綴比對
+            if os.path.commonpath([str(resolved), str(self.workspace_root)]) == str(self.workspace_root):
+                is_in_workspace = True
         except ValueError:
+            rel = None
+
+        if not is_in_workspace:
             # 若未包含在 workspace_root 內，檢查是否屬於臨時目錄特許
             if self.allow_system_temp:
                 import tempfile
                 temp_dir = Path(tempfile.gettempdir()).resolve()
                 try:
                     resolved.relative_to(temp_dir)
+                    if os.path.commonpath([str(resolved), str(temp_dir)]) != str(temp_dir):
+                        raise ValueError()
                     rel = None
                 except ValueError:
                     raise PathTraversalError(
@@ -213,6 +222,7 @@ class PathSanitizer:
                 raise PathTraversalError(
                     f"安全阻斷：目標路徑 '{resolved}' 越界！超出工作區邊界 '{self.workspace_root}'"
                 )
+
 
         if not allow_subdirectories and rel is not None and len(rel.parts) > 1:
             raise PathTraversalError(f"安全阻斷：不允許存取子目錄 '{resolved}'")

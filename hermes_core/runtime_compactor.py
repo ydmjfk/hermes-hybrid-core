@@ -1,31 +1,38 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-runtime_compactor.py — 工具輸出 4KB 智慧雙向保真截斷與磁碟落盤器 (DEC-20260908-01 / SEC-HARDENED v3)
+runtime_compactor.py — 工具輸出 4KB 智慧雙向保真截斷與磁碟落盤器 (DEC-20260908-01 / SEC-HARDENED v4 Final)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-職責與安全保證：
+工業級終極無菌安全保證：
 1. 【0 上下文溢出保證】：保證任何輸入下，輸出字元數嚴格 <= max_chars。
 2. 【雙向保真截斷 (Head-Tail Preservation)】：
    - Head：保留前置指令、參數與任務啟動上下文。
    - Tail：保留 Python Traceback、Exit Code、關鍵錯誤與結尾摘要。
 3. 【工業級無菌落盤安全 (SEC-HARDENED)】：
-   - 預設路徑隔離：mask_spool_path 預設為 True，預設不向模型/外部暴露真實實體路徑。
-   - 權限約束：目錄嚴格 0700、檔案嚴格 0600 (POSIX 最小特權)。
-   - 競態防禦：採用 os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW 防禦符號連結劫持；拒絕任何 Symlink 參照。
-   - 深度脫敏：落盤前強制執行 sanitize_secrets 物理脫敏，抹除常見憑證格式。
-   - 真實位元組配額：單檔 10MB (UTF-8 Bytes) 上限。
-   - 雙重容量有界與 TTL：目錄總容量 100MB 上限、最多 100 檔、24 小時 (TTL) 自動滾動過期清理。
-   - 檔名淨化：task_id 採嚴格正則白名單過濾 (禁用點號與特殊字元)，徹底阻斷目錄穿越。
+   - 預設路徑隔離：mask_spool_path 預設為 True，模型與外部輸出絕不暴露實體磁碟路徑。
+   - 目錄安全門禁：拒絕任何 symlink 目錄，目錄嚴格 0700、檔案嚴格 0600。
+   - 原子併發與配額鎖：使用 fcntl.flock 檔案鎖保護目錄清理與寫入，杜絕並發超限。
+   - 嚴格位元組上限：Truncation marker 納入預算，寫入磁碟總 bytes 絕對 <= 10MB。
+   - TOCTOU 免疫：原子建立 (O_EXCL | O_NOFOLLOW)；複用既有檔案時透過 fstat 嚴格校驗 uid、權限 0600 與常規檔案。
+   - 三維自癒清理：目錄總容量 100MB 上限、100 檔上限、24h TTL 自動滾動清理。
+   - 深度脫敏：落盤前強制執行 sanitize_secrets 物理脫敏，抹除敏感憑證。
+   - 檔名淨化：task_id 採嚴格白名單 (禁用點號與特殊字元)，徹底阻斷目錄穿越。
 """
 
 import collections
 import hashlib
 import os
 import re
+import stat
 import tempfile
 import time
 from pathlib import Path
 from typing import Optional, Tuple
+
+try:
+    import fcntl
+except ImportError:
+    fcntl = None  # Windows / Non-POSIX fallback
 
 from hermes_core.security_filter import sanitize_secrets
 
@@ -34,7 +41,7 @@ DEFAULT_HEAD_LINES = 15
 DEFAULT_TAIL_LINES = 35
 DEFAULT_SPOOL_DIR = Path(tempfile.gettempdir()) / "hermes_spool"
 
-# 安全配額常數 (以真實位元組 UTF-8 計算)
+# 安全配額常數 (以真實 UTF-8 位元組計算)
 MAX_SPOOL_FILE_BYTES = 10 * 1024 * 1024    # 10MB 單檔落盤上限 (Bytes)
 MAX_SPOOL_DIR_BYTES = 100 * 1024 * 1024    # 100MB 目錄總容量上限 (Bytes)
 MAX_SPOOL_DIR_FILES = 100                  # 目錄最多保留 100 個 spool 快照
@@ -45,7 +52,6 @@ def _sanitize_task_id(task_id: Optional[str]) -> str:
     """以嚴格安全字元白名單淨化 task_id，嚴禁點號、特殊字元、換行與路徑遍歷"""
     raw = str(task_id or "output").strip()
     cleaned = re.sub(r"[^A-Za-z0-9_-]", "_", raw)[:64]
-    # 清理連續底線並去除首尾底線
     cleaned = re.sub(r"_+", "_", cleaned).strip("_")
     return cleaned or "output"
 
@@ -58,9 +64,9 @@ def _clean_spool_dir_quota(
 ) -> None:
     """
     維持 spool 目錄配額健全度：
-    1. 超過 TTL (24h) 的舊快照自動刪除。
-    2. 檢查總容量 (<=100MB) 與總檔數 (<=100)，超限時按 mtime FIFO 滾動清理。
-    3. 自動拔除任何異常的 symlink 檔案。
+    1. 拔除任何符號連結。
+    2. 超過 TTL (24h) 的舊快照自動刪除。
+    3. 檢查總容量 (<=100MB) 與總檔數 (<=100)，超限時按 mtime FIFO 滾動清理。
     """
     try:
         now = time.time()
@@ -77,7 +83,6 @@ def _clean_spool_dir_quota(
             if p.is_file():
                 try:
                     st = p.stat()
-                    # 1. TTL 清理
                     if now - st.st_mtime > ttl_seconds:
                         p.unlink(missing_ok=True)
                         continue
@@ -85,8 +90,7 @@ def _clean_spool_dir_quota(
                 except OSError:
                     pass
 
-        # 2. 總檔案數與總容量 FIFO 清理
-        file_entries.sort(key=lambda x: x[2])  # 由舊到新排序
+        file_entries.sort(key=lambda x: x[2])  # 由舊到新
         total_bytes = sum(x[1] for x in file_entries)
         total_files = len(file_entries)
 
@@ -110,54 +114,99 @@ def _safe_spool_write(
     content_hash: str,
 ) -> Optional[str]:
     """
-    高安全物理無菌落盤：
-    1. 目錄強制 0700、檔案強制 0600
-    2. 防禦符號連結競爭 (O_EXCL | O_NOFOLLOW)，拒絕任何既有 Symlink
-    3. 寫入前執行憑證敏感資訊脫敏 (sanitize_secrets)
-    4. 實施真實 UTF-8 位元組截斷 (單檔上限 10MB)
-    5. 執行 100MB / 100 檔 / 24h TTL 自動滾動清理
+    最高安全物理無菌落盤 (TOCTOU 免疫 + 並發原子鎖 + 硬性位元組預算)：
+    1. 目錄防禦：拒絕 symlink 目錄，強制 0700
+    2. 並發鎖定：透過 lock file 排他鎖確保配額與寫入原子性
+    3. 檔案防禦：O_EXCL | O_NOFOLLOW 原子建立，權限強制 0600
+    4. 既有檔案：若已存在，透過 fstat 嚴格核驗 uid、regular file 與 0600 權限
+    5. 硬性上限：Marker 預先納入計算，實體檔案大小保證 <= 10MB
     """
     try:
+        # 1. 目錄本身安全檢驗：嚴禁 spool_dir 為符號連結
+        if spool_dir.is_symlink():
+            return None
+
         spool_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         try:
             os.chmod(spool_dir, 0o700)
         except OSError:
             pass
 
-        _clean_spool_dir_quota(spool_dir)
+        # 再次確認 mkdir 後的 spool_dir 非 symlink
+        if spool_dir.is_symlink():
+            return None
 
-        spool_file = spool_dir / f"spool_{safe_task_id}_{content_hash}.txt"
-
-        # 嚴格校驗已存在的檔案：若為 Symlink 則拔除；若為正常檔案則安全複用
-        if spool_file.is_symlink():
+        # 2. 並發原子鎖保護配額與寫入
+        lock_file = spool_dir / ".spool_quota.lock"
+        lock_fd = None
+        if fcntl:
             try:
-                spool_file.unlink(missing_ok=True)
-            except OSError:
-                return None
-        elif spool_file.is_file():
+                lock_fd = os.open(lock_file, os.O_CREAT | os.O_RDWR, 0o600)
+                fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            except Exception:
+                pass
+
+        try:
+            _clean_spool_dir_quota(spool_dir)
+
+            spool_file = spool_dir / f"spool_{safe_task_id}_{content_hash}.txt"
+
+            # 3. 嘗試原子獨佔建立 (O_EXCL | O_NOFOLLOW)
+            flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+            if hasattr(os, "O_NOFOLLOW"):
+                flags |= os.O_NOFOLLOW
+
+            try:
+                fd = os.open(spool_file, flags, 0o600)
+                is_new_file = True
+            except FileExistsError:
+                # 既有檔案分支：以 O_RDONLY | O_NOFOLLOW 開啟並透過 fstat 進行安全校驗
+                read_flags = os.O_RDONLY
+                if hasattr(os, "O_NOFOLLOW"):
+                    read_flags |= os.O_NOFOLLOW
+                try:
+                    existing_fd = os.open(spool_file, read_flags)
+                    try:
+                        st = os.fstat(existing_fd)
+                        # 嚴格核驗：必須是正規普通檔案、屬於當前使用者、權限未對其他使用者過度開放
+                        if not stat.S_ISREG(st.st_mode):
+                            return None
+                        if hasattr(os, "getuid") and st.st_uid != os.getuid():
+                            return None
+                        if (st.st_mode & 0o077) != 0:
+                            # 權限受污染，修正回 0600
+                            try:
+                                os.fchmod(existing_fd, 0o600)
+                            except OSError:
+                                return None
+                        return str(spool_file)
+                    finally:
+                        os.close(existing_fd)
+                except Exception:
+                    return None
+
+            # 4. 準備寫入內容 (落盤前物理脫敏 + 硬性位元組預算)
+            sanitized_content = sanitize_secrets(content)
+            encoded_bytes = sanitized_content.encode("utf-8")
+
+            marker = b"\n... [TRUNCATED: Spool file exceeded 10MB safety quota] ...\n"
+            if len(encoded_bytes) > MAX_SPOOL_FILE_BYTES:
+                content_budget = MAX_SPOOL_FILE_BYTES - len(marker)
+                payload_to_write = encoded_bytes[:content_budget] + marker
+            else:
+                payload_to_write = encoded_bytes
+
+            with os.fdopen(fd, "wb") as fp:
+                fp.write(payload_to_write)
+
             return str(spool_file)
-
-        # 落盤前物理脫敏
-        sanitized_content = sanitize_secrets(content)
-
-        # 以真實 UTF-8 位元組數計算與截斷
-        encoded_bytes = sanitized_content.encode("utf-8")
-        if len(encoded_bytes) > MAX_SPOOL_FILE_BYTES:
-            truncated_bytes = encoded_bytes[:MAX_SPOOL_FILE_BYTES]
-            sanitized_content = (
-                truncated_bytes.decode("utf-8", errors="ignore")
-                + "\n... [TRUNCATED: Spool file exceeded 10MB safety quota] ...\n"
-            )
-
-        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
-        if hasattr(os, "O_NOFOLLOW"):
-            flags |= os.O_NOFOLLOW
-
-        fd = os.open(spool_file, flags, 0o600)
-        with os.fdopen(fd, "w", encoding="utf-8") as fp:
-            fp.write(sanitized_content)
-
-        return str(spool_file)
+        finally:
+            if fcntl and lock_fd is not None:
+                try:
+                    fcntl.flock(lock_fd, fcntl.LOCK_UN)
+                    os.close(lock_fd)
+                except Exception:
+                    pass
     except Exception:
         return None
 

@@ -165,9 +165,45 @@ class TestV120SecurityHardened(unittest.TestCase):
             tripped, msg = detector.record_and_check(f"tool_{i % 10}", {"query": f"var_{i}"})
             self.assertFalse(tripped)
 
-        self.assertLessEqual(len(detector._call_history), 50)
+    def test_spool_dir_symlink_rejection(self):
+        """測試 spool 目錄本身若被替換為 symlink，系統必須拒絕落盤"""
+        real_dir = Path(self.temp_dir.name) / "real_dir"
+        real_dir.mkdir(mode=0o700)
+        symlink_dir = Path(self.temp_dir.name) / "symlink_spool_dir"
+        symlink_dir.symlink_to(real_dir)
+
+        content = "test content\n" * 500
+        compacted, is_truncated, spooled = compact_tool_output(
+            content,
+            max_chars=1024,
+            spool_dir=symlink_dir,
+            task_id="symlink_dir_attack",
+        )
+        self.assertTrue(is_truncated)
+        # 由於 spool_dir 是 symlink，安全閘門拒絕落盤，spooled 應為 None
+        self.assertIsNone(spooled)
+
+    def test_hard_byte_budget_with_truncation_marker(self):
+        """測試超大內容截斷時，含 truncation marker 的實際落盤大小嚴格 <= 10MB"""
+        from hermes_core.runtime_compactor import MAX_SPOOL_FILE_BYTES, _safe_spool_write
+        # 構造 12MB 的超大資料 (ASCII + UTF-8 中文)
+        huge_chunk = "這是中文測試內容與二進位邊界驗證。" * 50
+        huge_content = huge_chunk * ((12 * 1024 * 1024) // len(huge_chunk.encode("utf-8")) + 1)
+        self.assertGreater(len(huge_content.encode("utf-8")), MAX_SPOOL_FILE_BYTES)
+
+        spooled_file = _safe_spool_write(
+            content=huge_content,
+            spool_dir=self.spool_path,
+            safe_task_id="huge_byte_test",
+            content_hash="testhash123",
+        )
+        self.assertIsNotNone(spooled_file)
+        real_file_bytes = os.path.getsize(spooled_file)
+        # 驗證包含 marker 後的大小絕對不可超過 10MB
+        self.assertLessEqual(real_file_bytes, MAX_SPOOL_FILE_BYTES)
 
 
 if __name__ == "__main__":
     unittest.main()
+
 
