@@ -1,6 +1,6 @@
 # ⚡ Hermes Hybrid Core — 工業級 AI Agent 極速加速與確定性治理 SDK
 
-[![版本: v1.1.0](https://img.shields.io/badge/Release-v1.1.0-brightgreen.svg)](https://github.com/ydmjfk/hermes-hybrid-core)
+[![版本: v1.2.0](https://img.shields.io/badge/Release-v1.2.0-brightgreen.svg)](https://github.com/ydmjfk/hermes-hybrid-core)
 [![授權協議: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 版本: 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![能力庫健全度: 6/6 全綠](https://img.shields.io/badge/Capabilities-6%2F6%20Promoted-success.svg)]()
@@ -9,18 +9,19 @@
 
 **Hermes Hybrid Core** 是一套專為高可靠生產環境、工控自動化與大語言模型（LLM）工作流打造的**工業級 AI Agent 極速加速與確定性治理 SDK**。
 
-可直接無縫外掛至 Hermes 或任何基於 Python 的 AI Agent 執行環境，提供 **<5ms 語意快取直出**、**<50ms 骨架流式秒回**、**微秒級樂觀平行預取**、**排版幾何預檢自審門禁 (PreflightDeckGuard)**、**POSIX Null-Byte 物理消毒**、**6 大官方工業級能力庫（CAP-001~006）** 以及 **HAOS 5.3 確定性安全治理憲法**。
+可直接無縫外掛至 Hermes 或任何基於 Python 的 AI Agent 執行環境，提供 **<5ms 語意快取直出**、**<50ms 骨架流式秒回**、**微秒級樂觀平行預取**、**4KB 智慧雙向保真截斷 (Head 15 + Tail 35)**、**排版幾何預檢自審門禁 (PreflightDeckGuard)**、**POSIX Null-Byte 物理消毒**、**6 大官方工業級能力庫（CAP-001~006）** 以及 **HAOS 5.3 確定性安全治理憲法**。
 
 ---
 
-## 🛡️ 工業級六大零容忍核心保證 (Industrial-Grade Guarantees)
+## 🛡️ 工業級七大零容忍核心保證 (Industrial-Grade Guarantees)
 
-* 🔒 **0 死循環（Zero Infinite Loops）**：有界 2 次修復狀態機與熔斷機制，徹底杜絕無效空轉；Fast Path 中文比對採用 $O(N)$ 演算法，徹底杜絕 ReDoS 貪婪回溯。
+* 🔒 **0 死循環（Zero Infinite Loops）**：同參數重複調用零容忍硬熔斷與有界 2 次修復狀態機，徹底杜絕無效空轉；Fast Path 中文比對採用 $O(N)$ 演算法，徹底杜絕 ReDoS 貪婪回溯。
 * 🔒 **0 假完工（Zero Hallucinated Completion）**：客觀 Exit Code / AST 語法檢驗與 Evidence Ledger 證據帳本審查（POSIX 0600 安全存取與 WAL 高並發）。
 * 🔒 **0 注入越獄（Zero Prompt Injection & Malicious Payloads）**：入向無菌殺毒引擎（Ingress Antivirus），自動抹除對抗性提示詞越獄特徵，物理中和危險 Shell/Pipe 注入 (`curl|bash`, `rm -rf`, `base64 -d`)，提供外部資料隔離防護罩。
 * 🔒 **0 排版碰撞（Zero Layout Collisions & Emoji Tofu）**：PreflightDeckGuard 幾何相交碰撞預檢，自動審計 Bounding Box 重疊、文字膠囊溢出與跨平台缺字豆腐塊。
 * 🔒 **0 進程截斷（Zero Process Null-Byte Crashes）**：ProcessSupervisor 物理殺毒，全面剝除命令列與環境變數之 `\x00`，徹底免疫 POSIX C-level `ValueError: embedded null byte` 崩潰。
-* 🔒 **0 逾時死局（Zero Timeout Hangs）**：Runtime Control 資源盾牌，大輸出物理裁剪 94%，快取長度限制 16KB，消滅長任務逾時與記憶體耗盡。
+* 🔒 **0 上下文溢出（Zero Context Explosion）**：ToolOutputCompactor 4KB 智慧雙向保真截斷，Head 15 + Tail 35 行完整保留錯誤堆疊 Traceback 與 Exit Code，超限部分全量安全落盤磁碟。
+* 🔒 **0 逾時死局（Zero Timeout Hangs）**：Runtime Control 資源盾牌與 Smart Approval 審批逾時記憶熔斷，消滅長任務逾時與記憶體耗盡。
 
 ---
 
@@ -44,11 +45,12 @@
      ▼
 【5. Runtime Control 資源盾牌 & 三重響應層】(hermes_core)
      │ • 方案 3 (語意快取層): semantic_cache.py   ──(高頻查詢 <5ms 直出，防快取投毒，自動脫敏)
-     │ • 方案 4 (模板骨架秒回): skeleton_streamer.py ──(<50ms 貼心骨架，體感 0 延遲)
+     │ • 方案 4 (模板骨架秒回): skeleton_streamer.py ──(<50ms 貼心骨架，否定句語意防禦)
      │ • 方案 5 (樂觀預先執行): speculative_executor.py ──(平行預跑，微秒級提取)
+     │ • 4KB 雙向保真截斷: runtime_compactor.py ──(Head 15 + Tail 35，全量落盤，保護 KV Cache)
      │ • 排版幾何預檢門禁: preflight_guard.py ──(PPTX/排版物件 0 碰撞相交、0 豆腐塊)
+     │ • 重複調用硬熔斷器: circuit_breaker.py ──(同參數重複調用零容忍、審批逾時記憶熔斷)
      │ • 安全治理套件: path_sanitizer.py / security_filter.py (無菌殺毒+憑證脫敏+Null-Byte消毒)
-     │ • 大輸出物理裁剪 (>4KB 裁剪 94%) ──(保護 KV Cache，徹底消滅逾時)
      ▼
 【6. Objective Verifier 客觀物理驗證】──► Exit Code / AST 語法檢驗 (鐵律: UNKNOWN ≠ PASS)
      │                                     (有界修復：最多 2 次上限，超限轉交人類)
@@ -60,9 +62,9 @@
 ```
 
 > **📌 本 SDK 模組與八層架構映射說明**：
-> * **⚡ `hermes_core/`**：實裝 **Stage 5** 之「語意快取直出（<5ms）」、「骨架秒回流式器（<50ms）」、「樂觀平行預取管線（0.01ms）」、「排版幾何預檢自審門禁（PreflightDeckGuard）」、「Null-Byte 物理消毒器」、「SQLite WAL 安全連線池」、「任務層級熔斷器」與「全域入向無菌殺毒＋企業級五大安全防禦套件」。
+> * **⚡ `hermes_core/`**：實裝 **Stage 5** 之「語意快取直出（<5ms）」、「骨架秒回流式器（<50ms）」、「樂觀平行預取管線（0.01ms）」、「4KB 雙向保真截斷器（ToolOutputCompactor）」、「排版幾何預檢自審門禁（PreflightDeckGuard）」、「Null-Byte 物理消毒器」、「重複調用硬熔斷器」、「SQLite WAL 安全連線池」與「全域入向無菌殺毒＋企業級安全防禦套件」。
 > * **📦 `capabilities/`**：實裝 **CAP-001 ~ CAP-006** 六大能力引擎（AST 行內補丁、DAG 狀態機重規劃、有限修復狀態機、擴展註冊隔離、Cron 死信探針、沙盒化 MCP 橋接器）。
-> * **🛡️ `haos/`**：實裝 **Stage 3** 之 HAOS 5.3 確定性治理憲法（含幾何預檢條例與 POSIX 進程消毒）與 13 種對抗性攻擊安全過濾。
+> * **🛡️ `haos/`**：實裝 **Stage 3** 之 HAOS 5.3 確定性治理憲法（含單一指令操作邊界、未固化風格反問、對外草稿查驗、幾何預檢條例與 POSIX 進程消毒）與 13 種對抗性攻擊安全過濾。
 > * **🎯 `skills/prompt_inspector/`**：實裝 **Stage 8** 提示詞 0~100 分體檢中心與動態檢查項自適應演進。
 > * **🔗 宿主整合**：上述模組提供統一 Python SDK 介面（`import hermes_core`），可直接無縫外掛至 Hermes 或任何 Python Agent 主迴圈，一鍵賦能完整八層自主閉環！
 

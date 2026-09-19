@@ -27,3 +27,12 @@
 
 7. **後端契約同步條款 (Contract Sync Policy)**
    - 當後端（如 adapter/script）修改單據命名規則、目錄路徑或回傳結構時，記憶體 (MEMORY.md)、相關技能 (skills/) 及提示詞規範必須同批同步更新，嚴禁單邊漂移。
+
+8. **同參數重複調用零容忍 (Zero Exact-Duplicate Retry Policy)**
+   - 任何工具呼叫回傳錯誤或 inaccessible 時，嚴禁以完全相同之參數原地重試，連續 2 次即啟動硬熔斷。
+
+9. **目錄更名優先於重建刪除 (Rename Over Recreate Policy)**
+   - 檔案或目錄重組時，嚴禁採用「先複製新檔、再裸 rm 刪除舊檔」的危險操作；一律使用原子 `mv` / `rename`，確保資料安全性與 Git 歷史連續性。
+
+10. **工具輸出 4KB 雙向保真規範 (Tool Output Compaction Policy)**
+    - 工具輸出超限（>4KB）時，強制調用 `runtime_compactor` 實施 Head 15 + Tail 35 雙向保真預覽，全量日誌非同步落地磁碟，兼顧除錯完整性與 KV Cache 記憶體保護。

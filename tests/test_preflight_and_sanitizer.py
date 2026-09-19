@@ -20,8 +20,8 @@ from skills.prompt_inspector.scripts.inspect_prompt import inspect_prompt
 class TestPreflightAndSanitizer(unittest.TestCase):
 
     def test_version(self):
-        """驗證版本號為 1.1.0"""
-        self.assertEqual(__version__, "1.1.0")
+        """驗證版本號為 1.2.0"""
+        self.assertEqual(__version__, "1.2.0")
 
     def test_geometric_intersection(self):
         """驗證 Bounding Box 幾何碰撞演算法"""

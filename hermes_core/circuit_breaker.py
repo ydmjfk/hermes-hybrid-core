@@ -200,3 +200,64 @@ def clear_negative_cache(resource_key: str = None):
         if resource_key in cache:
             del cache[resource_key]
             _save_negative_cache(cache)
+
+
+class ToolDuplicateCallDetector:
+    """
+    同參數重複調用零容忍硬熔斷器 (Zero Exact-Duplicate Retry Guard)
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    解決 Agent 在工具執行失敗或 inaccessible 時，以完全相同之參數原地重試
+    導致陷入 9~10 輪重複空轉死循環。
+    連續相同調用 >= 2 次即啟動硬熔斷，阻斷後續無效嘗試。
+    """
+    def __init__(self, max_consecutive_duplicates: int = 2):
+        self.max_duplicates = max_consecutive_duplicates
+        self._call_history = []  # [(tool_name, params_hash, count)]
+
+    def record_and_check(self, tool_name: str, params: Any) -> Tuple[bool, str]:
+        """
+        記錄一次調用並檢驗是否觸發重複熔斷。
+        回傳 (is_tripped, explanation)
+        """
+        import hashlib
+        serialized = json.dumps(params, sort_keys=True, default=str) if isinstance(params, (dict, list)) else str(params)
+        p_hash = hashlib.sha256(serialized.encode("utf-8")).hexdigest()[:16]
+
+        if self._call_history and self._call_history[-1][0] == tool_name and self._call_history[-1][1] == p_hash:
+            prev = self._call_history[-1]
+            new_count = prev[2] + 1
+            self._call_history[-1] = (tool_name, p_hash, new_count)
+            if new_count >= self.max_duplicates:
+                return True, (
+                    f"🚨 [HAOS CIRCUIT BREAKER TRIPPED]: 檢測到工具 '{tool_name}' 以完全相同之參數連續重複調用 {new_count} 次！"
+                    "【零容忍鐵律】：嚴禁以相同假設原地重試，已啟動硬熔斷，請立即切換策略或回退向使用者請示。"
+                )
+        else:
+            self._call_history.append((tool_name, p_hash, 1))
+
+        return False, ""
+
+
+class SmartApprovalTimeoutShield:
+    """
+    審批逾時防卡死熔斷護盾 (Smart Approval Timeout Shield)
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    當高風險指令請求人工審批逾時時，在冷卻窗口 (預設 120s) 內再度觸發需審批
+    操作時，立即 0 秒快速拒絕收尾，杜絕連續等待導致系統卡死 180 秒。
+    """
+    _last_timeout_timestamp: float = 0.0
+    COOLDOWN_WINDOW_SECONDS: float = 120.0
+
+    @classmethod
+    def record_timeout(cls):
+        cls._last_timeout_timestamp = time.time()
+
+    @classmethod
+    def is_in_timeout_cooldown(cls) -> bool:
+        if cls._last_timeout_timestamp <= 0:
+            return False
+        return (time.time() - cls._last_timeout_timestamp) < cls.COOLDOWN_WINDOW_SECONDS
+
+    @classmethod
+    def reset(cls):
+        cls._last_timeout_timestamp = 0.0

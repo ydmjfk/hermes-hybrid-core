@@ -86,8 +86,20 @@ from .preflight_guard import (
 from .chat_client import (
     SafeAsyncSessionPool,
 )
+from .runtime_compactor import (
+    compact_tool_output,
+    ToolOutputCompactor,
+)
+from .circuit_breaker import (
+    check_and_execute_task,
+    record_negative_cache,
+    check_negative_cache,
+    clear_negative_cache,
+    ToolDuplicateCallDetector,
+    SmartApprovalTimeoutShield,
+)
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 __all__ = [
     "__version__",
@@ -111,6 +123,11 @@ __all__ = [
     "record_evidence",
     "get_recent_evidence",
     "check_and_execute_task",
+    "record_negative_cache",
+    "check_negative_cache",
+    "clear_negative_cache",
+    "ToolDuplicateCallDetector",
+    "SmartApprovalTimeoutShield",
     "enqueue_chat_file",
     "ensure_worker_running",
     "get_cached_response",
@@ -138,5 +155,7 @@ __all__ = [
     "PreflightDeckGuard",
     "audit_deck_file",
     "is_intersecting",
+    "compact_tool_output",
+    "ToolOutputCompactor",
 ]
 
