@@ -2,6 +2,7 @@
 
 [![版本: v1.3.1](https://img.shields.io/badge/Release-v1.3.1-brightgreen.svg)](https://github.com/ydmjfk/hermes-hybrid-core)
 [![Python 版本: 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
+[![社群討論: LCZ.me](https://img.shields.io/badge/Community-LCZ.me-orange.svg)](https://lcz.me/)
 [![能力庫健全度: 7/7 全綠](https://img.shields.io/badge/Capabilities-7%2F7%20Promoted-success.svg)]()
 [![單元測試: 205/205 PASS](https://img.shields.io/badge/Tests-205%2F205%20PASS%20(100%25)-brightgreen.svg)]()
 [![紅隊矩陣: 10/10 阻斷](https://img.shields.io/badge/Red%20Team-10%2F10%20Blocked-brightgreen.svg)]()
@@ -313,6 +314,15 @@ python3 -m unittest -v tests/test_slice7_red_team_matrix.py
 # 3. 執行全專案零私密資訊與公開發布安全稽核 (100% 通過)
 python3 -m unittest -v tests/security/test_sec_017_to_018_public_repo_audit.py
 ```
+
+---
+
+## 💬 社群與技術討論 (Community)
+本專案與技術架構討論官方唯一指定陣地：
+* 🌐 **LCZ 論壇**：[https://lcz.me/](https://lcz.me/)
+* 📦 **GitHub 倉庫**：[https://github.com/ydmjfk/hermes-hybrid-core](https://github.com/ydmjfk/hermes-hybrid-core)
+
+歡迎前往論壇交流分享實戰經驗、回饋建議與技術探討！
 
 ---
 
