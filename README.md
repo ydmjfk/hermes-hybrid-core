@@ -2,16 +2,14 @@
 
 [![版本: v1.3.0](https://img.shields.io/badge/Release-v1.3.0-brightgreen.svg)](https://github.com/ydmjfk/hermes-hybrid-core)
 [![Python 版本: 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![能力庫健全度: 6/6 全綠](https://img.shields.io/badge/Capabilities-6%2F6%20Promoted-success.svg)]()
-
-[![單元測試: 109/109 PASS](https://img.shields.io/badge/Tests-109%2F109%20PASS%20(100%25)-brightgreen.svg)]()
-
-
+[![能力庫健全度: 7/7 全綠](https://img.shields.io/badge/Capabilities-7%2F7%20Promoted-success.svg)]()
+[![單元測試: 198/198 PASS](https://img.shields.io/badge/Tests-198%2F198%20PASS%20(100%25)-brightgreen.svg)]()
+[![紅隊矩陣: 10/10 阻斷](https://img.shields.io/badge/Red%20Team-10%2F10%20Blocked-brightgreen.svg)]()
 [![安全基線: Public Release Ready](https://img.shields.io/badge/Security%20Baseline-Public%20Release%20Ready-blue.svg)](SECURITY.md)
 
-**Hermes Hybrid Core** 是一套專為高可靠生產環境、工控自動化與大語言模型（LLM）工作流打造的**工業級 AI Agent 極速加速與確定性治理 SDK**。
+**Hermes Hybrid Core** 是一套專為高可靠生產環境、工控自動化與大語言模型（LLM）工作流打造的**工業級 AI Agent 極速加速、確定性治理與不可繞過信任架構 SDK (Canonical Trust Architecture)**。
 
-可直接無縫外掛至 Hermes 或任何基於 Python 的 AI Agent 執行環境，提供 **<5ms 語意快取直出**、**<50ms 骨架流式秒回**、**微秒級樂觀平行預取**、**4KB 智慧雙向保真截斷 (Head 15 + Tail 35)**、**排版幾何預檢自審門禁 (PreflightDeckGuard)**、**POSIX Null-Byte 物理消毒**、**6 大官方工業級能力庫（CAP-001~006）** 以及 **HAOS 5.3 確定性安全治理憲法**。
+可直接無縫外掛至 Hermes 或任何基於 Python 的 AI Agent 執行環境，提供 **不可繞過實體閘門（ProcessGate / StorageGate / NetworkGate）**、**UDS 0660 權威 Broker**、**全執行語意 SHA-256 雜湊契約**、**Agent 執行期零私鑰（Zero-Key Principle）**、**<5ms 語意快取直出**、**<50ms 骨架流式秒回**、**微秒級樂觀平行預取**、**4KB 智慧雙向保真截斷**、**排版幾何預檢自審門禁**、**7 大官方工業級能力庫（CAP-001~007）** 以及 **HAOS 5.3 確定性安全治理憲法**。
 
 ---
 
@@ -95,6 +93,12 @@
 | **動態擴展註冊隔離 (Extension Layer)** | `CAP-004` | **微秒級異常隔離與自癒復原** | **確保外掛插件系統高可用彈性** |
 | **Cron 死信熔斷防護 (Dead-Letter Guard)** | `CAP-005` | **3 次失敗隔離與慢速探針** | **防止排程任務崩潰引發連鎖雪崩** |
 | **沙盒化 MCP 適配 (Sandboxed MCP)** | `CAP-006` | **測試基準 8/8 種攻擊向量全數阻斷** | **遞迴驗證路徑穿越、命令注入與變更性 SQL (SEC-005~007 驗證)** |
+| **不可繞過權威 Broker (Authority Broker)** | `hermes_core` | **UDS 0660 + SO_PEERCRED 驗身** | **實體驗證呼叫者 PID/UID/GID，時間衰減 Nonce 0 重放** |
+| **進程實體閘門 (ProcessGate)** | `hermes_core` | **SHA-256 全執行語意剛性鎖定** | **微秒級重算，Tampering/漂移 100% 阻斷，1MB 預算門禁** |
+| **存儲實體閘門 (StorageGate)** | `hermes_core` | **O_NOFOLLOW + Inode 雙向錨定** | **符號連結劫持免疫，Inode 競態漂移阻斷，憲法檔案 100% 保護** |
+| **網路出境閘門 (NetworkGate)** | `hermes_core` | **Anti-SSRF + DNS-Rebinding 阻絕** | **雲端 Metadata/內網 IP 阻絕，出向金鑰 Bearer 自動抹除** |
+| **Agent 零私鑰審查 (Zero-Key Audit)** | `hermes_core` | **記憶體反射深度審查 0 私鑰** | **Agent 執行時僅持公鑰，私鑰物理隔離於 Broker 守護進程** |
+| **紅隊對抗性防禦矩陣 (AT-01~10)** | `tests` | **10 大對抗場景 100% Fail-Closed** | **越權、覆寫、SSRF、鏈接注入、重放競態物理級全面防禦** |
 
 ---
 
@@ -119,8 +123,21 @@ hermes-hybrid-core/
 │
 ├── hermes_core/               # ⚡ 極速三重響應引擎與安全治理核心模組
 │   ├── __init__.py            # 統一 SDK 入口 (import hermes_core)
-│   ├── runtime_compactor.py   # [v1.2.0] 4KB 智慧雙向保真截斷器 (Head 15 + Tail 35，KV Cache 保護)
-│   ├── preflight_guard.py     # [v1.2.0] 排版幾何預檢自審門禁 (AABB 碰撞預檢、豆腐塊防護)
+│   ├── authority/             # 🏛️ [v1.3.0] 不可繞過權威 Broker 守護進程與 IPC 客戶端
+│   │   ├── broker.py          # AuthorityBroker (UDS 0660、SO_PEERCRED、Ed25519、Nonce GC)
+│   │   ├── client.py          # AgentAuthorityClient (Fail-Closed IPC 客戶端)
+│   │   └── models.py          # 不可變模型 (TaskManifest, CapabilityGrant, ProvenanceContext)
+│   ├── provenance/            # 🪪 [v1.3.0] 外部發端證明簽署與驗章器 (Key_Provenance)
+│   │   └── signer.py          # IngressProvenanceSigner & ProvenanceVerifier
+│   ├── approval/              # ✍️ [v1.3.0] CAS 人工審批憑證服務與驗章器 (Key_Approval)
+│   │   └── service.py         # HumanApprovalService & ApprovalTokenVerifier
+│   ├── gates/                 # 🛡️ [v1.3.0] 實體執行閘門與統一調度適配器 (Zero Private Keys)
+│   │   ├── process_gate.py    # ProcessGate (進程閘門、全語意雜湊比對、bwrap 沙盒)
+│   │   ├── storage_gate.py    # StorageGate (存儲閘門、O_NOFOLLOW、Inode 錨定防 TOCTOU)
+│   │   ├── network_gate.py    # NetworkGate (網路閘門、Anti-SSRF、出向機密自動脫敏)
+│   │   └── adapter.py         # UnifiedExecutionAdapter (統一全信任鏈適配器)
+│   ├── runtime_compactor.py   # 4KB 智慧雙向保真截斷器 (Head 15 + Tail 35，KV Cache 保護)
+│   ├── preflight_guard.py     # 排版幾何預檢自審門禁 (AABB 碰撞預檢、豆腐塊防護)
 │   ├── path_sanitizer.py      # 路徑穿越防禦、32 跳符號連結迴圈阻斷與敏感目錄黑名單
 │   ├── security_filter.py     # 敏感憑證自動脫敏、Null-Byte 物理消毒與全域入向無菌殺毒引擎
 │   ├── config_loader.py       # 安全環境變數載入與 POSIX 0600 檔案權限嚴格校驗
@@ -132,42 +149,30 @@ hermes-hybrid-core/
 │   ├── evidence_logger.py     # 結構化客觀審計與證據日誌 (POSIX 0600 + WAL + 10,000 筆自動滾動)
 │   ├── async_attachment_worker.py # 異步附件安全背景處理器
 │   ├── chat_client.py         # 通用通知客戶端適配器 (SafeAsyncSessionPool 跨 Loop 連線池)
+│   ├── trust_boundary.py      # 信任邊界規範防護引擎 (S-1 背景同權、S-4 記憶反注入、S-6 連鎖截斷)
 │   └── trust_root.py          # 信任根憑證簽核與發行校驗
 │
 ├── docs/                      # 📚 系統架構、性能優化與安全治理技術白皮書
-│   ├── whitepapers/           # 📄 [v1.2.0] 深度技術白皮書
-│   │   ├── 01_Geometric_Preflight_and_Null_Byte_Sanitization.md # 幾何預檢與進程無菌消毒白皮書
-│   │   └── 02_Context_Compaction_and_Tool_Output_Compactor.md   # 上下文壓縮與 4KB 雙向截斷白皮書
-│   ├── 01_system_architecture_spec.md        # 系統架構技術規格書 (Master Spec)
-│   ├── 02_latency_optimization_guide.md      # 極速三重響應引擎優化指南
-│   ├── 03_runtime_control_and_circuit_breaker.md # 工具調用診斷與防死循環白皮書
-│   ├── 04_context_hygiene_guide.md           # 上下文健康診斷與防頻繁壓縮優化指南
-│   └── 05_security_governance_and_best_practices.md # 安全治理白皮書與生產防禦指南
-│
 ├── capabilities/              # 📦 6 大官方工業級能力庫 (CAP-001~006)
-│   ├── inline_patch/          # CAP-001: AST 行內補丁引擎
-│   ├── planner_recovery/      # CAP-002: DAG 狀態機局部重規劃器
-│   ├── agent_loop_recover/    # CAP-003: 錯誤特徵提取與循環修復
-│   ├── extension_layer/       # CAP-004: 動態擴展註冊表與隔離機制
-│   ├── operator_deadletter/   # CAP-005: Cron 任務死信隊列與熔斷器
-│   ├── sandboxed_mcp/         # CAP-006: 沙盒化安全 MCP 適配器 (路徑沙盒化防禦)
-│   └── verify_all_capabilities.py # 能力全域健康度總驗收腳本
+├── skills/                    # 🎯 標準 SOP 技能沉澱
+├── haos/                      # 🛡️ HAOS 5.3 確定性治理憲法條文
+├── scripts/                   # 🛠️ 工業級發布與維護工具箱 (sign_capability.py)
 │
-├── skills/                    # 🎯 [v1.2.0] 標準 SOP 技能沉澱
-│   └── prompt_inspector/      # 提示詞 0-100 分動態體檢與優化建議技能
-│
-├── haos/                      # 🛡️ HAOS 5.3 確定性治理憲法條文 (含單一操作邊界與進程消毒)
-│
-├── scripts/                   # 🛠️ 工業級發布與維護工具箱
-│   └── sign_capability.py     # [v1.2.1] 官方 Release Authority 密碼學簽署工具
-│
-├── tests/                     # 🧪 自動化能力與安全治理單元測試套件 (98/98 PASS)
-│   ├── security/              # 🛡️ 深度安全滲透與防禦測試矩陣 (SEC-001 ~ SEC-030)
-│   ├── test_hermes_core.py    # 核心加速與緩存單元測試
-│   ├── test_security_governance.py # 安全治理五大防線 31 項測試
-│   ├── test_preflight_and_sanitizer.py # [v1.2.0] 幾何預檢與消毒器專案測試
-│   ├── test_v120_fortnight_upgrades.py # [v1.2.0] 雙週主版本 10 項升級整合驗收測試
-│   └── test_v120_security_hardened.py  # [v1.2.0] 無菌落盤 0600、機密脫敏與預算門禁測試
+├── tests/                     # 🧪 自動化測試套件 (198/198 PASS, 100% 綠燈)
+│   ├── security/              # 🛡️ 深度安全滲透測試 (SEC-001 ~ SEC-030 及開源審查)
+│   ├── test_slice1_authority_broker.py      # [v1.3.0] S1: 權威 Broker 與 IPC 通訊骨幹測試 (22/22)
+│   ├── test_slice2_provenance_and_approval.py # [v1.3.0] S2: 發端簽章與 CAS 人工審批測試 (17/17)
+│   ├── test_slice3_process_gate.py          # [v1.3.0] S3: ProcessGate 實體進程閘門測試 (11/11)
+│   ├── test_slice4_storage_gate.py          # [v1.3.0] S4: StorageGate 存儲與防 TOCTOU 測試 (10/10)
+│   ├── test_slice5_network_gate.py          # [v1.3.0] S5: NetworkGate 出境與 Anti-SSRF 測試 (10/10)
+│   ├── test_slice6_system_integration.py    # [v1.3.0] S6: 端到端全信任鏈整合適配測試 (9/9)
+│   ├── test_slice7_red_team_matrix.py       # [v1.3.0] S7: 紅隊對抗防禦矩陣 AT-01~10 驗收 (10/10)
+│   ├── test_trust_boundary.py               # 信任邊界規範防護測試
+│   ├── test_hermes_core.py                  # 核心加速與緩存單元測試
+│   ├── test_security_governance.py          # 安全治理五大防線測試
+│   ├── test_preflight_and_sanitizer.py      # 幾何預檢與消毒器專案測試
+│   ├── test_v120_fortnight_upgrades.py      # 雙週主版本升級整合驗收測試
+│   └── test_v120_security_hardened.py       # 無菌落盤 0600、機密脫敏與預算門禁測試
 │
 └── mock_data/                 # 📋 示範任務資料 (開箱即用)
 ```
@@ -261,17 +266,51 @@ is_chained = has_command_chaining("python3 script.py; rm -rf /")
 print(f"連鎖指令偵測: {is_chained}")  # True
 ```
 
+#### 範例 C：不可繞過信任架構 (v1.3.0 Canonical Trust Architecture)
+```python
+from hermes_core.authority.client import AgentAuthorityClient
+from hermes_core.gates.process_gate import ProcessGate
+from hermes_core.gates.storage_gate import StorageGate
+from hermes_core.gates.network_gate import NetworkGate
+from hermes_core.gates.adapter import UnifiedExecutionAdapter
+from hermes_core.authority.models import ProvenanceContext, FullExecutionSemantics
+
+# 1. 建立 Domain Gates (Zero-Key Principle: 僅需載入 Key_Broker_Public 公開金鑰)
+broker_pub_bytes = open("secrets/authority_broker.pub", "rb").read()
+process_gate = ProcessGate(broker_public_key=broker_pub_bytes)
+storage_gate = StorageGate(broker_public_key=broker_pub_bytes)
+network_gate = NetworkGate(broker_public_key=broker_pub_bytes)
+
+# 2. 透過 UDS 0660 連接 Authority Broker 守護進程
+client = AgentAuthorityClient(socket_path="/tmp/authority_broker.sock")
+adapter = UnifiedExecutionAdapter(
+    authority_client=client,
+    process_gate=process_gate,
+    storage_gate=storage_gate,
+    network_gate=network_gate,
+)
+
+# 3. 執行受剛性 SHA-256 語意雜湊保護的命令
+provenance = ProvenanceContext(caller_id="agent_tool", origin_source="terminal", taint_tag="SYSTEM_INTERNAL")
+semantics = FullExecutionSemantics(
+    interpreter_path="", interpreter_hash="", script_path="", script_hash="",
+    argv=("/bin/echo", "TRUST_CHAIN_VERIFIED"), cwd="/tmp", env_allowlist=(),
+    sandbox_profile="DEFAULT", network_policy="DENY_ALL"
+)
+result = adapter.execute_process("task_proc_safe", provenance, semantics)
+print(f"執行成功: {result.success}, 輸出: {result.stdout.strip()}")
+```
+
 ### 4. 執行全域自動化驗證
 ```bash
-# 1. 驗證 6 大官方能力庫 (100% 全綠驗證)
-python3 capabilities/verify_all_capabilities.py
-
-# 2. 執行全套單元測試 (90/90 PASS，包含 v1.2.0 新特性與 26 項安全穿透測試)
-
+# 1. 執行全庫單元與紅隊對抗測試套件 (198/198 PASS, 100% 綠燈)
 python3 -m unittest discover -s tests
 
-# 3. 執行全專案零私密資訊與隱私掃描 (100% 通過)
-python3 check_security.py
+# 2. 執行紅隊 AT-01~10 專屬滲透測試矩陣 (10/10 阻斷成功)
+python3 -m unittest -v tests/test_slice7_red_team_matrix.py
+
+# 3. 執行全專案零私密資訊與公開發布安全稽核 (100% 通過)
+python3 -m unittest -v tests/security/test_sec_017_to_018_public_repo_audit.py
 ```
 
 ---
