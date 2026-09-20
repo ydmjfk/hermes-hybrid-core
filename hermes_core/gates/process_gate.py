@@ -74,8 +74,50 @@ class ProcessGate:
         else:
             self._public_key = broker_public_key
 
-        # Detect bwrap if available
+        # Detect bwrap if available (HHC-001 / HHC-007)
         self._bwrap_path = bwrap_path or shutil.which("bwrap")
+        self._bwrap_version_ok = False
+        if self._bwrap_path:
+            try:
+                out = subprocess.check_output([self._bwrap_path, "--version"], text=True, timeout=2.0)
+                self._bwrap_version_ok = self.check_bwrap_version(out)
+            except Exception:
+                self._bwrap_version_ok = False
+
+    @staticmethod
+    def check_bwrap_version(version_str: str, min_version: Tuple[int, int, int] = (0, 11, 0)) -> bool:
+        """Parse and verify bwrap version is at least min_version (HHC-007)."""
+        try:
+            parts = version_str.strip().split()
+            v_str = parts[-1]
+            nums = tuple(int(x) for x in v_str.split(".")[:3])
+            return nums >= min_version
+        except Exception:
+            return False
+
+    def _build_bwrap_args(self, cmd: List[str], effective_cwd: str) -> List[str]:
+        """
+        Build Bubblewrap isolation arguments with strict path masking (HHC-006).
+        """
+        bwrap_args = [
+            self._bwrap_path,
+            "--unshare-pid",
+            "--unshare-ipc",
+            "--ro-bind", "/", "/",
+            "--tmpfs", "/root",
+            "--tmpfs", "/home",
+            "--dev", "/dev",
+            "--proc", "/proc",
+            "--tmpfs", "/tmp",
+        ]
+        for sensitive in ("/etc/shadow", "/etc/gshadow", "/etc/sudoers"):
+            if os.path.exists(sensitive):
+                bwrap_args.extend(["--tmpfs", sensitive])
+
+        if os.path.exists(effective_cwd):
+            bwrap_args.extend(["--bind", effective_cwd, effective_cwd, "--chdir", effective_cwd])
+        bwrap_args.extend(["--", *cmd])
+        return bwrap_args
 
     @property
     def public_key(self) -> ed25519.Ed25519PublicKey:
@@ -143,39 +185,31 @@ class ProcessGate:
         start_time = time.time()
         current_time = start_time if now is None else now
 
-        # Step 1: Verification Pipeline
+        # Step 1: Verify grant
         is_valid, err_code, err_msg = self.verify_grant(grant, semantics, now=current_time)
         if not is_valid:
-            duration_ms = (time.time() - start_time) * 1000.0
             return ProcessExecutionResult(
                 success=False,
                 exit_code=-1,
                 stdout="",
-                stderr="",
-                execution_hash=grant.exact_execution_hash,
-                duration_ms=duration_ms,
+                stderr=err_msg or "Capability grant verification failed",
+                execution_hash=grant.exact_execution_hash if grant else "",
+                duration_ms=(time.time() - start_time) * 1000.0,
                 error_code=err_code,
                 error_message=err_msg,
             )
 
-        # Step 2: Assemble Environment from strict allowlist
-        child_env: Dict[str, str] = {}
+        # Step 2: Environment Sanitation
+        child_env = {}
         for k, v in semantics.env_allowlist:
             child_env[k] = v
 
-        # Inherit minimal safe environment variables if not present
-        if "PATH" not in child_env:
-            child_env["PATH"] = os.environ.get("PATH", "/usr/bin:/bin")
-        if "LANG" not in child_env:
-            child_env["LANG"] = "C.UTF-8"
-
-        # Step 3: Determine Command Vector
-        cmd: List[str] = []
-        if semantics.interpreter_path:
-            cmd.append(semantics.interpreter_path)
-        if semantics.script_path:
-            cmd.append(semantics.script_path)
-        cmd.extend(list(semantics.argv))
+        # Step 3: Reconstruct command vector
+        cmd = list(semantics.argv)
+        if not cmd and semantics.interpreter_path:
+            cmd = [semantics.interpreter_path]
+            if semantics.script_path:
+                cmd.append(semantics.script_path)
 
         if not cmd:
             return ProcessExecutionResult(
@@ -189,28 +223,37 @@ class ProcessGate:
                 error_message="Empty command vector",
             )
 
-        # Step 4: Sandbox Wrapper Dispatch
+        # Step 4: Sandbox Wrapper Dispatch (HHC-001: Fail-Closed)
         profile = (semantics.sandbox_profile or "default").upper()
-        use_bwrap = profile in ("ISOLATED_CONTAINER", "RESTRICTED_BWRAP", "BWRAP") and bool(self._bwrap_path)
+        requires_bwrap = profile in ("ISOLATED_CONTAINER", "RESTRICTED_BWRAP", "BWRAP")
 
         final_cmd = cmd
         effective_cwd = semantics.cwd or os.getcwd()
 
-        if use_bwrap and self._bwrap_path:
-            # Build Bubblewrap isolation arguments
-            bwrap_args = [
-                self._bwrap_path,
-                "--unshare-pid",
-                "--unshare-ipc",
-                "--ro-bind", "/", "/",
-                "--dev", "/dev",
-                "--proc", "/proc",
-                "--tmpfs", "/tmp",
-            ]
-            if os.path.exists(effective_cwd):
-                bwrap_args.extend(["--bind", effective_cwd, effective_cwd, "--chdir", effective_cwd])
-            bwrap_args.extend(["--", *cmd])
-            final_cmd = bwrap_args
+        if requires_bwrap:
+            if not self._bwrap_path:
+                return ProcessExecutionResult(
+                    success=False,
+                    exit_code=-1,
+                    stdout="",
+                    stderr="Sandbox required by profile but bwrap is not available",
+                    execution_hash=grant.exact_execution_hash,
+                    duration_ms=(time.time() - start_time) * 1000.0,
+                    error_code=FailureCode.DENY_POLICY_VIOLATION,
+                    error_message=f"Sandbox profile '{profile}' requires bwrap, but bwrap was not found (Fail-Closed)",
+                )
+            if not self._bwrap_version_ok:
+                return ProcessExecutionResult(
+                    success=False,
+                    exit_code=-1,
+                    stdout="",
+                    stderr="Sandbox required by profile but bwrap version is incompatible",
+                    execution_hash=grant.exact_execution_hash,
+                    duration_ms=(time.time() - start_time) * 1000.0,
+                    error_code=FailureCode.DENY_POLICY_VIOLATION,
+                    error_message="bwrap version is incompatible or unsupported (Fail-Closed)",
+                )
+            final_cmd = self._build_bwrap_args(cmd, effective_cwd)
 
         # Step 5: Secure Execution
         try:

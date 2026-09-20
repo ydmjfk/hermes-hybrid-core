@@ -37,6 +37,7 @@ from hermes_core.authority.broker import (
     NONCE_RETENTION_SECONDS,
 )
 from hermes_core.authority.client import AgentAuthorityClient
+from hermes_core.approval.service import HumanApprovalService
 
 
 class TestSlice1AuthorityBroker(unittest.TestCase):
@@ -53,10 +54,14 @@ class TestSlice1AuthorityBroker(unittest.TestCase):
             signature="manifest_sig_valid",
         )
 
+        self.approval_service = HumanApprovalService()
+        self.approval_pubkey = self.approval_service.get_public_key()
+
         self.broker = AuthorityBroker(
             socket_path=self.sock_path,
             broker_secret=self.secret,
             manifest_store={"task_calc_pi": self.manifest},
+            approval_public_key=self.approval_pubkey,
         )
         self.broker.start()
         self.client = AgentAuthorityClient(socket_path=self.sock_path)
@@ -163,14 +168,10 @@ class TestSlice1AuthorityBroker(unittest.TestCase):
             network_policy="deny_all",
         )
 
-        tampered_approval = HumanApprovalProof(
-            token_id="tok_1",
+        tampered_approval = self.approval_service.issue_approval(
             approver_id="chang",
-            approver_sig="sig_chang",
-            issued_at=time.time(),
-            valid_until=time.time() + 60,
-            token_nonce="nonce_123",
             exact_execution_hash="0000000000000000000000000000000000000000000000000000000000000000",
+            token_nonce="nonce_123",
         )
 
         req = CapabilityRequest(
@@ -201,14 +202,10 @@ class TestSlice1AuthorityBroker(unittest.TestCase):
         )
         canonical_hash = semantics.compute_canonical_hash()
 
-        valid_approval = HumanApprovalProof(
-            token_id="tok_ok",
+        valid_approval = self.approval_service.issue_approval(
             approver_id="chang",
-            approver_sig="sig_ok",
-            issued_at=time.time() - 5,
-            valid_until=time.time() + 60,
-            token_nonce="nonce_unique_1",
             exact_execution_hash=canonical_hash,
+            token_nonce="nonce_unique_1",
         )
 
         req = CapabilityRequest(
@@ -255,14 +252,10 @@ class TestSlice1AuthorityBroker(unittest.TestCase):
 
         def submit_request(thread_id: int):
             thread_client = AgentAuthorityClient(socket_path=self.sock_path)
-            approval = HumanApprovalProof(
-                token_id=f"tok_{thread_id}",
+            approval = self.approval_service.issue_approval(
                 approver_id="chang",
-                approver_sig="sig",
-                issued_at=time.time(),
-                valid_until=time.time() + 60,
-                token_nonce=shared_nonce,
                 exact_execution_hash=canonical_hash,
+                token_nonce=shared_nonce,
             )
             req = CapabilityRequest(
                 request_id=f"req_thread_{thread_id}",
@@ -303,14 +296,12 @@ class TestSlice1AuthorityBroker(unittest.TestCase):
         )
         canonical_hash = semantics.compute_canonical_hash()
 
-        expired_approval = HumanApprovalProof(
-            token_id="tok_exp",
+        expired_approval = self.approval_service.issue_approval(
             approver_id="chang",
-            approver_sig="sig",
-            issued_at=time.time() - 100,
-            valid_until=time.time() - 10,
-            token_nonce="nonce_expired",
             exact_execution_hash=canonical_hash,
+            ttl_seconds=10.0,
+            now=time.time() - 100,
+            token_nonce="nonce_expired",
         )
 
         req = CapabilityRequest(
@@ -502,14 +493,10 @@ class TestSlice1AuthorityBroker(unittest.TestCase):
         )
         canonical_hash = semantics.compute_canonical_hash()
 
-        approval = HumanApprovalProof(
-            token_id="tok_e02",
+        approval = self.approval_service.issue_approval(
             approver_id="chang",
-            approver_sig="sig",
-            issued_at=time.time() - 1,
-            valid_until=time.time() + 60,
-            token_nonce="nonce_e02",
             exact_execution_hash=canonical_hash,
+            token_nonce="nonce_e02",
         )
         req = CapabilityRequest(
             request_id="req_e02",
@@ -653,14 +640,10 @@ class TestSlice1AuthorityBroker(unittest.TestCase):
             network_policy="deny_all",
         )
         canonical_hash = semantics.compute_canonical_hash()
-        approval = HumanApprovalProof(
-            token_id=token_id,
+        approval = self.approval_service.issue_approval(
             approver_id="chang",
-            approver_sig="sig",
-            issued_at=time.time() - 1,
-            valid_until=time.time() + 60,
-            token_nonce=nonce,
             exact_execution_hash=canonical_hash,
+            token_nonce=nonce,
         )
         req = CapabilityRequest(
             request_id=f"req_{token_id}",

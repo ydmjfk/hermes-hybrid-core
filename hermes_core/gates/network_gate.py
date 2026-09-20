@@ -218,6 +218,31 @@ class NetworkGate:
             sanitized = pattern.sub(r"\1[REDACTED_BY_NETWORK_GATE]", sanitized)
         return sanitized
 
+    SENSITIVE_HEADER_KEYS: Set[str] = {
+        "authorization",
+        "proxy-authorization",
+        "cookie",
+        "set-cookie",
+        "x-api-key",
+        "api-key",
+        "x-auth-token",
+        "token",
+    }
+
+    def redact_headers(self, headers: Optional[Dict[str, str]]) -> Dict[str, str]:
+        """Sanitize sensitive headers (e.g. Authorization, Tokens, Cookies) (HHC-005)."""
+        if not headers:
+            return {}
+        redacted = {}
+        for k, v in headers.items():
+            k_str = str(k)
+            v_str = str(v)
+            if k_str.lower() in self.SENSITIVE_HEADER_KEYS:
+                redacted[k_str] = "[REDACTED_BY_NETWORK_GATE]"
+            else:
+                redacted[k_str] = self.redact_egress_data(v_str)
+        return redacted
+
     def send_request(
         self,
         grant: CapabilityGrant,
@@ -272,7 +297,7 @@ class NetworkGate:
                 error_message=ssrf_err_msg,
             )
 
-        # Step 3: Egress Secret Redaction
+        # Step 3: Egress Secret Redaction (Body + Headers) (HHC-005)
         sanitized_data = data
         if isinstance(data, str):
             sanitized_data = self.redact_egress_data(data)
@@ -284,7 +309,7 @@ class NetworkGate:
             return NetworkExecutionResult(
                 success=(200 <= mock_status < 400),
                 status_code=mock_status,
-                headers=mock_headers,
+                headers=self.redact_headers(mock_headers),
                 body=truncated_body,
                 target_url=url,
                 resolved_ip=resolved_ip,
@@ -292,12 +317,22 @@ class NetworkGate:
             )
 
         # In production execution, standard urllib/requests wrapper is invoked
-        # Here we enforce fail-closed if live socket call fails
+        # HHC-003: IP Pinning prevents DNS Rebinding TOCTOU
+        port = parsed_url.port
+        pinned_netloc = f"{resolved_ip}:{port}" if port else resolved_ip
+        pinned_url = urllib.parse.urlunparse(
+            (parsed_url.scheme, pinned_netloc, parsed_url.path or "/", parsed_url.params, parsed_url.query, parsed_url.fragment)
+        )
+
+        req_headers = dict(headers) if headers else {}
+        if "Host" not in req_headers and "host" not in req_headers:
+            req_headers["Host"] = parsed_url.netloc
+
         try:
             req = urllib.request.Request(
-                url=url,
+                url=pinned_url,
                 data=sanitized_data.encode("utf-8") if isinstance(sanitized_data, str) else sanitized_data,
-                headers=headers or {},
+                headers=req_headers,
                 method=method.upper(),
             )
             with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -307,7 +342,7 @@ class NetworkGate:
                 return NetworkExecutionResult(
                     success=(200 <= resp.status < 400),
                     status_code=resp.status,
-                    headers=dict(resp.headers),
+                    headers=self.redact_headers(dict(resp.headers)),
                     body=truncated_body,
                     target_url=url,
                     resolved_ip=resolved_ip,
@@ -323,7 +358,7 @@ class NetworkGate:
                 resolved_ip=resolved_ip,
                 duration_ms=(time.time() - start_time) * 1000.0,
                 error_code=FailureCode.DENY_UNKNOWN_STATE,
-                error_message=f"Network request failure: {exc}",
+                error_message=self.redact_egress_data(f"Network request failure: {exc}"),
             )
 
     @staticmethod

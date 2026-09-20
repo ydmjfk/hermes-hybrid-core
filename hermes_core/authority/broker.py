@@ -352,35 +352,28 @@ class AuthorityBroker:
 
             proof = request.human_approval
 
-            # V-05 Cryptographic Verification of Human Approval Proof
-            if self.approval_verifier:
-                if not self.approval_verifier.verify_approval(proof, expected_hash=canonical_hash, now=now):
-                    if proof.valid_until < now:
-                        raise CapabilityDeniedError(
-                            FailureCode.DENY_TTL_EXPIRED,
-                            f"Human approval token expired at {proof.valid_until} (current: {now})",
-                        )
-                    elif proof.exact_execution_hash != canonical_hash:
-                        raise CapabilityDeniedError(
-                            FailureCode.DENY_EXECUTION_SEMANTICS_DRIFT,
-                            f"Human approval hash '{proof.exact_execution_hash[:16]}...' does not match canonical hash '{canonical_hash[:16]}...'",
-                        )
-                    else:
-                        raise CapabilityDeniedError(
-                            FailureCode.DENY_SIGNATURE_TAMPERED,
-                            "Human approval token signature is invalid, forged, or tampered",
-                        )
-            else:
-                # Baseline validation when approval_verifier is not configured
-                if proof.exact_execution_hash != canonical_hash:
-                    raise CapabilityDeniedError(
-                        FailureCode.DENY_EXECUTION_SEMANTICS_DRIFT,
-                        f"Human approval hash '{proof.exact_execution_hash[:16]}...' does not match canonical hash '{canonical_hash[:16]}...'",
-                    )
+            # V-05 Cryptographic Verification of Human Approval Proof (HHC-002: Fail-Closed)
+            if not self.approval_verifier:
+                raise CapabilityDeniedError(
+                    FailureCode.DENY_UNAUTHORIZED_GRANT,
+                    "Human approval required but approval_verifier is not configured on broker (Fail-Closed)",
+                )
+
+            if not self.approval_verifier.verify_approval(proof, expected_hash=canonical_hash, now=now):
                 if proof.valid_until < now:
                     raise CapabilityDeniedError(
                         FailureCode.DENY_TTL_EXPIRED,
                         f"Human approval token expired at {proof.valid_until} (current: {now})",
+                    )
+                elif proof.exact_execution_hash != canonical_hash:
+                    raise CapabilityDeniedError(
+                        FailureCode.DENY_EXECUTION_SEMANTICS_DRIFT,
+                        f"Human approval hash '{proof.exact_execution_hash[:16]}...' does not match canonical hash '{canonical_hash[:16]}...'",
+                    )
+                else:
+                    raise CapabilityDeniedError(
+                        FailureCode.DENY_SIGNATURE_TAMPERED,
+                        "Human approval token signature is invalid, forged, or tampered",
                     )
 
             # V-08 Atomic Nonce Check-and-Consume for approval token

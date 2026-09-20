@@ -77,6 +77,7 @@ class HumanApprovalService:
         exact_execution_hash: str,
         ttl_seconds: float = DEFAULT_APPROVAL_TTL_SECONDS,
         now: Optional[float] = None,
+        token_nonce: Optional[str] = None,
     ) -> HumanApprovalProof:
         """
         Issue a cryptographically signed HumanApprovalProof bound to the exact execution hash.
@@ -86,7 +87,8 @@ class HumanApprovalService:
         valid_until = current_time + clamped_ttl
 
         token_id = str(uuid.uuid4())
-        token_nonce = uuid.uuid4().hex
+        if token_nonce is None:
+            token_nonce = uuid.uuid4().hex
 
         digest = compute_approval_digest(
             token_id=token_id,

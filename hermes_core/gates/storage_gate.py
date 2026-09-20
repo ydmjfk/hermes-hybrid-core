@@ -13,6 +13,7 @@ Architecture Principles:
 """
 
 import os
+import stat
 import time
 import base64
 import logging
@@ -204,10 +205,38 @@ class StorageGate:
 
         try:
             fd = os.open(target_path, flags, 0o600)
-            with open(fd, "wb") as f:
-                f.write(raw_bytes)
+            try:
+                st = os.fstat(fd)
+                if not stat.S_ISREG(st.st_mode):
+                    return StorageExecutionResult(
+                        success=False,
+                        operation="write",
+                        target_path=target_path,
+                        duration_ms=(time.time() - start_time) * 1000.0,
+                        error_code=FailureCode.DENY_POLICY_VIOLATION,
+                        error_message=f"Target is not a regular file (mode: {oct(st.st_mode)})",
+                    )
+                # Verify opened fd path matches normalized target (TOCTOU defense)
+                try:
+                    fd_path = os.path.realpath(f"/proc/self/fd/{fd}")
+                    normalized_target = os.path.realpath(os.path.abspath(target_path))
+                    if fd_path != normalized_target:
+                        return StorageExecutionResult(
+                            success=False,
+                            operation="write",
+                            target_path=target_path,
+                            duration_ms=(time.time() - start_time) * 1000.0,
+                            error_code=FailureCode.DENY_POLICY_VIOLATION,
+                            error_message=f"Path TOCTOU detected: {fd_path} != {normalized_target}",
+                        )
+                except (OSError, FileNotFoundError):
+                    pass
 
-            st = os.stat(target_path)
+                with open(fd, "wb", closefd=False) as f:
+                    f.write(raw_bytes)
+            finally:
+                os.close(fd)
+
             return StorageExecutionResult(
                 success=True,
                 operation="write",
@@ -236,7 +265,7 @@ class StorageGate:
         """
         Execute secure file deletion under CapabilityGrant:
         - Inode-Anchored anti-TOCTOU: compares current inode against expected_inode
-        - Rejects symlink targets
+        - Rejects symlink targets (lstat)
         - Rejects constitutional protected files
         - Fail-closed
         """
@@ -267,20 +296,19 @@ class StorageGate:
                 error_message="Target file does not exist",
             )
 
-        # Anti-Symlink Defense on deletion
-        if os.path.islink(target_path):
-            return StorageExecutionResult(
-                success=False,
-                operation="delete",
-                target_path=target_path,
-                duration_ms=(time.time() - start_time) * 1000.0,
-                error_code=FailureCode.DENY_POLICY_VIOLATION,
-                error_message="Target path is a symbolic link (Symlink deletion forbidden)",
-            )
-
-        # Inode-Anchored Anti-TOCTOU
+        # Anti-Symlink Defense & Inode-Anchored Anti-TOCTOU
         try:
-            current_st = os.stat(target_path)
+            current_st = os.lstat(target_path)
+            if stat.S_ISLNK(current_st.st_mode):
+                return StorageExecutionResult(
+                    success=False,
+                    operation="delete",
+                    target_path=target_path,
+                    duration_ms=(time.time() - start_time) * 1000.0,
+                    error_code=FailureCode.DENY_POLICY_VIOLATION,
+                    error_message="Target path is a symbolic link (Symlink deletion forbidden)",
+                )
+
             current_inode = current_st.st_ino
             if expected_inode is not None and current_inode != expected_inode:
                 return StorageExecutionResult(

@@ -1,9 +1,9 @@
 # ⚡ Hermes Hybrid Core — 工業級 AI Agent 極速加速與確定性治理 SDK
 
-[![版本: v1.3.0](https://img.shields.io/badge/Release-v1.3.0-brightgreen.svg)](https://github.com/ydmjfk/hermes-hybrid-core)
+[![版本: v1.3.1](https://img.shields.io/badge/Release-v1.3.1-brightgreen.svg)](https://github.com/ydmjfk/hermes-hybrid-core)
 [![Python 版本: 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![能力庫健全度: 7/7 全綠](https://img.shields.io/badge/Capabilities-7%2F7%20Promoted-success.svg)]()
-[![單元測試: 198/198 PASS](https://img.shields.io/badge/Tests-198%2F198%20PASS%20(100%25)-brightgreen.svg)]()
+[![單元測試: 205/205 PASS](https://img.shields.io/badge/Tests-205%2F205%20PASS%20(100%25)-brightgreen.svg)]()
 [![紅隊矩陣: 10/10 阻斷](https://img.shields.io/badge/Red%20Team-10%2F10%20Blocked-brightgreen.svg)]()
 [![安全基線: Public Release Ready](https://img.shields.io/badge/Security%20Baseline-Public%20Release%20Ready-blue.svg)](SECURITY.md)
 
@@ -158,8 +158,9 @@ hermes-hybrid-core/
 ├── haos/                      # 🛡️ HAOS 5.3 確定性治理憲法條文
 ├── scripts/                   # 🛠️ 工業級發布與維護工具箱 (sign_capability.py)
 │
-├── tests/                     # 🧪 自動化測試套件 (198/198 PASS, 100% 綠燈)
+├── tests/                     # 🧪 自動化測試套件 (205/205 PASS, 100% 綠燈)
 │   ├── security/              # 🛡️ 深度安全滲透測試 (SEC-001 ~ SEC-030 及開源審查)
+│   ├── test_audit_hardening.py              # [v1.3.1] HHC-001~007 實體閘門與 Broker 剛性安全加固 (7/7)
 │   ├── test_slice1_authority_broker.py      # [v1.3.0] S1: 權威 Broker 與 IPC 通訊骨幹測試 (22/22)
 │   ├── test_slice2_provenance_and_approval.py # [v1.3.0] S2: 發端簽章與 CAS 人工審批測試 (17/17)
 │   ├── test_slice3_process_gate.py          # [v1.3.0] S3: ProcessGate 實體進程閘門測試 (11/11)
@@ -303,7 +304,7 @@ print(f"執行成功: {result.success}, 輸出: {result.stdout.strip()}")
 
 ### 4. 執行全域自動化驗證
 ```bash
-# 1. 執行全庫單元與紅隊對抗測試套件 (198/198 PASS, 100% 綠燈)
+# 1. 執行全庫單元與紅隊對抗測試套件 (205/205 PASS, 100% 綠燈)
 python3 -m unittest discover -s tests
 
 # 2. 執行紅隊 AT-01~10 專屬滲透測試矩陣 (10/10 阻斷成功)
